@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Проверка ядра</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+</head>
+<body>
+  <header class="head">
+    <img src="assets/icons/icon-192.png" alt="">
+    <div>
+      <h1>Проверка ядра</h1>
+      <p class="sub">Схема и хранилище. Данные приложения не затрагиваются</p>
+    </div>
+  </header>
+
+  <p class="verdict" id="verdict">Проверки выполняются…</p>
+
+  <ul class="checks" id="checks"></ul>
+
+  <p class="actions">
+    <button class="btn" id="again" type="button">Прогнать заново</button>
+    <a class="link" href="index.html">К проверке контура</a>
+  </p>
+</body>
+<script type="module" src="src/core/check.js"></script>
+</html>

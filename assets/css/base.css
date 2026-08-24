@@ -110,3 +110,52 @@ footer {
   font-family: var(--f-num);
   font-size: var(--t-xs);
 }
+
+/* --- страница проверки ядра --- */
+
+.verdict {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+  color: var(--c-muted);
+}
+
+.verdict[data-state="ok"] {
+  border-color: var(--c-chrome);
+  color: var(--c-ink);
+}
+
+.verdict[data-state="fail"] {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+}
+
+.btn {
+  min-height: var(--tap);
+  padding: 0 var(--s-5);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-raised);
+  color: var(--c-ink);
+  font-family: var(--f-body);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+.btn:active { background: var(--c-surface); }
+
+.link {
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  border-bottom: 1px solid var(--c-line);
+}
