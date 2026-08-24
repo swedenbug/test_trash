@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Круглый щит: красные и белые четверти, хромированный обод и умбон">
+  <defs>
+    <!-- Хром: жёсткие переходы светлое/тёмное, иначе металл читается как серый пластик -->
+    <linearGradient id="chrome" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0.00" stop-color="#ffffff"/>
+      <stop offset="0.12" stop-color="#c9d0d6"/>
+      <stop offset="0.26" stop-color="#7c858d"/>
+      <stop offset="0.38" stop-color="#eef3f7"/>
+      <stop offset="0.50" stop-color="#ffffff"/>
+      <stop offset="0.62" stop-color="#9aa3ab"/>
+      <stop offset="0.74" stop-color="#454c53"/>
+      <stop offset="0.88" stop-color="#b6bec6"/>
+      <stop offset="1.00" stop-color="#f2f6fa"/>
+    </linearGradient>
+
+    <!-- Умбон: купол, свет сверху слева -->
+    <radialGradient id="boss" cx="0.36" cy="0.30" r="0.78">
+      <stop offset="0.00" stop-color="#ffffff"/>
+      <stop offset="0.28" stop-color="#dfe5ea"/>
+      <stop offset="0.55" stop-color="#8e979f"/>
+      <stop offset="0.80" stop-color="#3f464c"/>
+      <stop offset="1.00" stop-color="#aab3bb"/>
+    </radialGradient>
+
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="#000000"/>
+
+  <!-- Свечение по контуру -->
+  <circle cx="256" cy="256" r="192" fill="none" stroke="#dce6f0" stroke-width="16" opacity="0.45" filter="url(#glow)"/>
+
+  <!-- Поле щита: четыре четверти -->
+  <g>
+    <clipPath id="field">
+      <circle cx="256" cy="256" r="180"/>
+    </clipPath>
+    <g clip-path="url(#field)">
+      <rect x="76"  y="76"  width="180" height="180" fill="#f4f4f2"/>
+      <rect x="256" y="76"  width="180" height="180" fill="#b81f28"/>
+      <rect x="76"  y="256" width="180" height="180" fill="#b81f28"/>
+      <rect x="256" y="256" width="180" height="180" fill="#f4f4f2"/>
+    </g>
+  </g>
+
+  <!-- Хромированный обод -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#chrome)" stroke-width="22"/>
+  <circle cx="256" cy="256" r="179" fill="none" stroke="#12161a" stroke-width="3" opacity="0.55"/>
+
+  <!-- Умбон -->
+  <circle cx="256" cy="256" r="60" fill="url(#chrome)"/>
+  <circle cx="256" cy="256" r="52" fill="url(#boss)"/>
+</svg>

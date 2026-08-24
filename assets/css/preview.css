@@ -1,0 +1,58 @@
+/* preview.css — служебные страницы согласования. В приложение не входит. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  text-align: center;
+}
+
+.cell .art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+}
+
+.cell .name {
+  font-size: var(--t-sm);
+  line-height: 1.3;
+}
+
+.cell .hint {
+  color: var(--c-muted);
+  font-size: var(--t-xs);
+  line-height: 1.3;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.note {
+  margin: 0 0 var(--s-5);
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+}
+
+.section {
+  margin: var(--s-6) 0 var(--s-3);
+  font-size: var(--t-lg);
+}

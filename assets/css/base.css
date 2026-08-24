@@ -4,6 +4,10 @@
 *::before,
 *::after { box-sizing: border-box; }
 
+/* Собственное значение display перебивает атрибут hidden.
+   Правило возвращает атрибуту силу — иначе скрытая панель ловит касания. */
+[hidden] { display: none !important; }
+
 html {
   -webkit-text-size-adjust: 100%;
   background: var(--c-bg);

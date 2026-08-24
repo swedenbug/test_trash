@@ -1,0 +1,256 @@
+/*
+  home.css — три зоны главного экрана.
+  Доли высоты страхуются пиксельными минимумами: на маленьком экране
+  пропорция уступает попадаемости пальцем.
+*/
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* --- шапка --- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 0 var(--s-4);
+  flex: 0 0 auto;
+}
+
+.topbar__date {
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+}
+
+.topbar__menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin-right: calc(var(--s-3) * -1);
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* --- ряд кружков --- */
+
+/* Граница между областями экрана — на пределе заметности.
+   Она разделяет, но не рисуется: рамки утяжеляют экран. */
+.rings {
+  flex: 0 0 auto;
+  min-height: 116px;
+  padding: var(--s-2) 0 var(--s-3);
+  border-bottom: 1px solid var(--c-hairline);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.rings::-webkit-scrollbar { display: none; }
+
+.rings__row {
+  display: flex;
+  gap: var(--s-4);
+  margin: 0;
+  padding: 0 var(--s-4);
+  list-style: none;
+}
+
+.ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  flex: 0 0 auto;
+  width: 76px;
+}
+
+.ring__label {
+  color: var(--c-muted);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+
+/* --- лента карточек --- */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-4) var(--s-5);
+}
+
+/* --- нижние переходы --- */
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  border-top: 1px solid var(--c-hairline);
+  background: rgba(10, 10, 11, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabbar__row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: 52px;
+  opacity: 0.9;
+}
+
+.tab.is-on { opacity: 1; }
+
+/* --- экран порядка тем --- */
+
+.sheet {
+  margin-top: var(--s-6);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+}
+
+.sheet__title { margin: 0 0 var(--s-1); font-size: var(--t-lg); }
+.sheet__hint { margin: 0 0 var(--s-4); color: var(--c-muted); font-size: var(--t-xs); }
+
+.order { margin: 0; padding: 0; list-style: none; }
+
+.order__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-raised);
+}
+
+.order__num {
+  font-family: var(--f-num);
+  font-size: var(--t-sm);
+  color: var(--c-muted);
+  width: 14px;
+}
+
+.order__name { flex: 1; font-size: var(--t-sm); }
+.order__grip { display: flex; flex: 0 0 auto; }
+
+/* --- таблетка отмены --- */
+
+.undo {
+  position: fixed;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+}
+
+.undo__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: 0 var(--s-3) 0 var(--s-5);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: rgba(28, 30, 33, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--c-ink);
+  font-family: var(--f-body);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.undo__ring { flex: 0 0 auto; }
+
+/* --- развёрнутый экран темы --- */
+
+.sheet-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; }
+.sheet-back { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); }
+
+.sheet-panel {
+  position: relative;
+  width: 100%;
+  max-height: 86dvh;
+  overflow-y: auto;
+  padding: var(--s-4) var(--s-4) calc(var(--s-6) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--c-line);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--c-surface);
+}
+
+.sheet-panel__head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-panel__head h2 { margin: 0; font-size: var(--t-lg); }
+
+.sheet-panel__close {
+  width: var(--tap); height: var(--tap);
+  border: 0; background: none; color: var(--c-muted);
+  font-size: var(--t-base); cursor: pointer;
+}
+
+.sheet-panel__sum {
+  margin: var(--s-1) 0 var(--s-5);
+  font-family: var(--f-geo);
+  font-size: var(--t-xl);
+}
+
+.sheet-panel__sub { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); color: var(--c-muted); }
+
+.manual { display: flex; gap: var(--s-2); }
+
+.manual__input {
+  flex: 1; min-width: 0;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-raised);
+  color: var(--c-ink);
+  font-family: var(--f-body);
+  font-size: var(--t-base);
+}
+
+.manual__err { margin: var(--s-2) 0 0; color: var(--c-danger); font-size: var(--t-xs); }
+
+.records { margin: 0; padding: 0; list-style: none; }
+
+.records__row {
+  display: flex; align-items: center; gap: var(--s-3);
+  min-height: var(--tap);
+  border-top: 1px solid var(--c-line);
+}
+
+.records__row:first-child { border-top: 0; }
+.records__time { font-family: var(--f-num); font-size: var(--t-sm); color: var(--c-muted); width: 48px; }
+.records__ml { flex: 1; font-family: var(--f-geo); }
+
+.records__del {
+  width: var(--tap); height: var(--tap);
+  border: 0; background: none; color: var(--c-faint);
+  font-size: var(--t-sm); cursor: pointer;
+}
+
+.records__empty { padding: var(--s-3) 0; color: var(--c-muted); font-size: var(--t-sm); }

@@ -75,6 +75,7 @@ export const defaultSettings = {
   'water.hold_ml':      1000,
   'water.soft_after_min': 72,
   'water.hard_after_min': 180,
+  'water.goal_ml':      2500,   // пока норма не задана явно в water_goal
 };
 
 /* ------------------------------------------------------------------ */
