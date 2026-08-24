@@ -75,17 +75,34 @@ h1 {
   text-align: right;
 }
 
+/* Состояние читается формой, а не только оттенком:
+   неизвестно — пустой контур, любое определённое состояние — залитый круг со свечением. */
 .dot {
   flex: 0 0 auto;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--c-faint);
+  background: transparent;
+  border: 2px solid var(--c-line);
 }
 
-.dot[data-state="ok"]   { background: var(--c-chrome); }
-.dot[data-state="warn"] { background: var(--c-signal); }
-.dot[data-state="fail"] { background: var(--c-danger); }
+.dot[data-state="ok"] {
+  background: var(--c-chrome);
+  border-color: var(--c-chrome);
+  box-shadow: 0 0 8px rgba(230, 234, 238, 0.55);
+}
+
+.dot[data-state="warn"] {
+  background: var(--c-signal);
+  border-color: var(--c-signal);
+  box-shadow: 0 0 8px rgba(224, 163, 46, 0.55);
+}
+
+.dot[data-state="fail"] {
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+  box-shadow: 0 0 8px rgba(255, 90, 74, 0.55);
+}
 
 footer {
   margin-top: var(--s-5);
