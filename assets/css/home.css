@@ -69,6 +69,14 @@
   gap: var(--s-1);
   flex: 0 0 auto;
   width: 76px;
+
+  /* Удержание — наш жест. Без этих четырёх строк Safari на долгом нажатии
+     показывает своё меню и выделяет содержимое, и ввод воды не доходит. */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ring__label {

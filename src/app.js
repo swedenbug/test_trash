@@ -152,7 +152,6 @@ async function render() {
 function bindWaterRing() {
   const el = document.querySelector('.ring[data-theme="water"]');
   if (!el) return;
-  el.style.touchAction = 'none';
 
   attachHold(el, {
     onProgress(state) { holdState = state; paintRingOnly(); },
