@@ -116,6 +116,34 @@ export function createStore(adapter) {
       return api.put('settings', { id: key, value });
     },
 
+    /**
+     * Принять записи, пришедшие извне. В отличие от `put` не трогает
+     * `updated_at`: время правки принадлежит тому, кто её сделал,
+     * иначе при обмене каждая сторона будет считать свою версию новее.
+     */
+    async mergeIncoming(collection, rows) {
+      requireTable(collection);
+      let applied = 0;
+
+      for (const row of rows) {
+        const { ok, errors } = validate(collection, row);
+        if (!ok) {
+          console.warn(`запись отклонена при обмене — ${errors.join('; ')}`);
+          continue;
+        }
+        const mine = await api.get(collection, row.id);
+        if (mine && (mine.updated_at ?? '') >= (row.updated_at ?? '')) continue;
+        await adapter.upsert(collection, row);
+        applied++;
+      }
+
+      if (applied) {
+        if (collection === 'settings') settingsCache = null;
+        notify(collection);
+      }
+      return applied;
+    },
+
     /* --- подписка ------------------------------------------------- */
 
     onChange(collection, handler) {

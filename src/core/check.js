@@ -253,6 +253,67 @@ const tests = [
   },
 
   {
+    name: 'Таблица состояния обмена',
+    async run() {
+      const state = { id: 'water_intake', pulled_at: null, pushed_at: nowIso() };
+      const saved = await store.put('sync_state', state);
+      if (saved.url !== null) throw new Error('не проставлено значение по умолчанию');
+      const back = await store.get('sync_state', 'water_intake');
+      if (back.pushed_at !== state.pushed_at) throw new Error('отметка не сохранилась');
+      return 'курсоры пишутся и читаются';
+    },
+  },
+
+  {
+    name: 'Приём чужой записи не перебивает время',
+    async run() {
+      const mark = new Date(Date.now() + 3600000).toISOString();
+      const alien = {
+        id: crypto.randomUUID(), at: nowIso(), local_date: '2026-01-01',
+        amount_ml: 300, source: 'manual', note: null,
+        created_at: mark, updated_at: mark, deleted_at: null,
+      };
+      const applied = await store.mergeIncoming('water_intake', [alien]);
+      if (applied !== 1) throw new Error('запись не принята');
+
+      const saved = await store.get('water_intake', alien.id);
+      if (saved.updated_at !== mark) throw new Error('время правки перебито своим');
+      ctx.alienId = alien.id;
+      return 'время правки сохранено';
+    },
+  },
+
+  {
+    name: 'Устаревшая чужая запись отклоняется',
+    async run() {
+      const mine = await store.get('water_intake', ctx.alienId);
+      const stale = { ...mine, amount_ml: 999,
+                      updated_at: new Date(Date.parse(mine.updated_at) - 60000).toISOString() };
+      const applied = await store.mergeIncoming('water_intake', [stale]);
+      if (applied !== 0) throw new Error('победила устаревшая версия');
+
+      const after = await store.get('water_intake', ctx.alienId);
+      if (after.amount_ml !== mine.amount_ml) throw new Error('запись всё-таки перезаписана');
+      return 'победила свежая';
+    },
+  },
+
+  {
+    name: 'Негодная чужая запись не ломает приём',
+    async run() {
+      const good = {
+        id: crypto.randomUUID(), at: nowIso(), local_date: '2026-01-01',
+        amount_ml: 200, source: 'tap', note: null,
+        created_at: nowIso(), updated_at: nowIso(), deleted_at: null,
+      };
+      const bad = { id: crypto.randomUUID(), amount_ml: -5, source: 'дно' };
+      const applied = await store.mergeIncoming('water_intake', [bad, good]);
+      if (applied !== 1) throw new Error(`принято ${applied} вместо одной`);
+      return 'негодная отброшена, годная принята';
+    },
+  },
+
+  {
     name: 'Уборка за собой',
     async run() {
       await store.wipe();

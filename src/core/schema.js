@@ -6,7 +6,7 @@
   Здесь нет хранения и нет интерфейса — только форма данных.
 */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /* Поля, общие для прикладных таблиц. Без них невозможно слияние устройств. */
 const common = {
@@ -51,6 +51,21 @@ export const schema = {
     fields: {
       id:         { type: 'id',        required: true },  // ключ настройки
       value:      { type: 'json',      required: true },
+      updated_at: { type: 'timestamp', required: true },
+    },
+  },
+
+  /* Состояние обмена с сервером. На сервер не уезжает: адрес и пропуск
+     привязаны к устройству, а курсоры у каждого устройства свои. */
+  sync_state: {
+    label: 'Состояние обмена',
+    orderBy: 'id',
+    fields: {
+      id:         { type: 'id',        required: true },
+      url:        { type: 'string',    nullable: true, default: null, max: 300 },
+      token:      { type: 'string',    nullable: true, default: null, max: 300 },
+      pulled_at:  { type: 'timestamp', nullable: true, default: null },
+      pushed_at:  { type: 'timestamp', nullable: true, default: null },
       updated_at: { type: 'timestamp', required: true },
     },
   },
@@ -195,3 +210,6 @@ export function normalize(collection, input, ctx = {}) {
 }
 
 export const collections = Object.keys(schema);
+
+/* Что уезжает на сервер. Служебное и состояние обмена — не уезжают. */
+export const SYNCED = ['water_intake', 'water_goal', 'settings'];

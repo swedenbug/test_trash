@@ -1,14 +1,33 @@
 /*
-  home.css — три зоны главного экрана.
+  home.css — зоны главного экрана.
   Доли высоты страхуются пиксельными минимумами: на маленьком экране
   пропорция уступает попадаемости пальцем.
 */
+
+/* Приложение живёт в колонке телефонной ширины и на широком экране остаётся
+   такой же. Растянутый на весь монитор трекер выглядит поломанным: кружки
+   уезжают в угол, а строки по тысяче пикселей не читаются. */
+:root { --app-width: 440px; }
 
 .screen {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  max-width: var(--app-width);
+  margin: 0 auto;
 }
+
+@media (min-width: 520px) {
+  .screen {
+    border-left: 1px solid var(--c-hairline);
+    border-right: 1px solid var(--c-hairline);
+  }
+}
+
+/* Панели и таблетка держатся той же колонки, а не краёв монитора. */
+.sheet-wrap { justify-content: center; }
+.sheet-panel { max-width: var(--app-width); }
+.undo { left: 50%; }
 
 /* --- шапка --- */
 

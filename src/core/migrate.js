@@ -21,7 +21,14 @@ import { SCHEMA_VERSION, newId, nowIso } from './schema.js';
       await adapter.writeAll('water_intake', rows.map((r) => ({ ...r, note: r.note ?? null })));
     },
 */
-const steps = {};
+const steps = {
+  // 2: появилась таблица состояния обмена. Данные не меняются, но версию
+  // поднять нужно: иначе устройство со старой схемой примет новые записи молча.
+  2: async (adapter) => {
+    const rows = await adapter.readAll('sync_state');
+    if (!rows.length) await adapter.writeAll('sync_state', []);
+  },
+};
 
 /**
  * Приводит хранилище к текущей версии схемы.

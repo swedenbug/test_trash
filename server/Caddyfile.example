@@ -1,0 +1,26 @@
+# Обратный прокси. Положить в /etc/caddy/Caddyfile, заменить имя.
+#
+# Caddy сам получает сертификат и сам его продлевает. Для этого нужно,
+# чтобы имя уже указывало на этот сервер, а порты 80 и 443 были открыты.
+#
+#   sudo systemctl reload caddy
+
+progress.example.com {
+    encode gzip
+
+    # Наружу отдаются только две ручки. Всё остальное — отказ.
+    @api path /changes /changes/* /health
+    handle @api {
+        reverse_proxy 127.0.0.1:8787
+    }
+
+    handle {
+        respond "нет такой ручки" 404
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+}

@@ -1,0 +1,29 @@
+# Служба обмена. Положить в /etc/systemd/system/progress-sync.service
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now progress-sync
+#   sudo systemctl status progress-sync
+#   journalctl -u progress-sync -f          # смотреть журнал
+
+[Unit]
+Description=Progress sync
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=progress
+WorkingDirectory=/opt/progress/server
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=3
+
+# Служба не должна мочь больше, чем ей нужно.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/progress/server
+
+[Install]
+WantedBy=multi-user.target

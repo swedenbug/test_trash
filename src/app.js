@@ -9,6 +9,7 @@
 
 import { createLocalAdapter } from './core/adapter-local.js';
 import { createStore } from './core/store.js';
+import { createSync } from './core/sync.js';
 import { createWater, TAP, HOLD } from './modules/water.js';
 import { circleSvg } from './ui/circle.js';
 import { cardHtml, chartBlock } from './ui/card.js';
@@ -20,6 +21,7 @@ import { createRecent } from './ui/recent.js';
 
 const store = createStore(createLocalAdapter());
 const water = createWater(store);
+const sync = createSync(store);
 
 const undo = createUndo(document.body);
 const screen = createWaterScreen({ water, undo, onChange: render });
@@ -37,7 +39,7 @@ const recentThemes = [
 ];
 
 const recent = createRecent({ themes: recentThemes, undo, onChange: render });
-const menu = createMenu({ store, water, onChange: render, onOpenRecent: () => recent.open() });
+const menu = createMenu({ store, water, sync, onChange: render, onOpenRecent: () => recent.open() });
 document.body.append(screen.el, menu.el, recent.el);
 
 /* Заглушки тем, по которым ещё нет ни логики, ни брифа на эмблему. */
@@ -292,4 +294,19 @@ store.onChange('water_goal', refreshAll);
   store.requestPersistence().catch(() => {});
 
   await render();
+  startSync();
 })();
+
+/*
+  Обмен идёт сбоку и молча. Он не мешает записывать воду и не показывает
+  ничего поверх экрана: неудача — обычное дело, в метро связи нет.
+  Состояние обмена видно в меню, там же кнопка «Синхронизировать».
+*/
+function startSync() {
+  const quiet = () => sync.run().then(refreshAll).catch(() => {});
+
+  quiet();
+  window.addEventListener('online', quiet);
+  setInterval(() => { if (!document.hidden) quiet(); }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) quiet(); });
+}

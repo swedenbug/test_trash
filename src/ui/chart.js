@@ -19,7 +19,9 @@ function frame(inner, labels) {
        font-family="var(--f-body)" font-size="9"
        fill="var(--c-faint)">${text}</text>`).join('');
 
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+  /* Без preserveAspectRatio="none": при растяжении по горизонтали
+     подписи осей расплываются вширь и становятся нечитаемыми. */
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}"
       xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}${marks}</svg>`;
 }
 

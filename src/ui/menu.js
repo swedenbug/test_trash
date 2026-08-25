@@ -9,7 +9,7 @@
 
 import { exportToFile, importFromFile } from '../core/backup.js';
 
-export function createMenu({ store, water, onChange, onOpenRecent }) {
+export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
   const el = document.createElement('div');
   el.className = 'sheet-wrap';
   el.hidden = true;
@@ -38,6 +38,25 @@ export function createMenu({ store, water, onChange, onOpenRecent }) {
         <p class="field__hint">Новая норма действует с сегодняшнего дня. Прошлые дни
           остаются посчитанными по той норме, что была тогда.</p>
         <p class="m-note" id="m-goal-note" hidden></p>
+      </div>
+
+      <h3 class="sheet-panel__sub">Сервер</h3>
+      <ul class="facts" id="s-facts"></ul>
+      <div class="field">
+        <label class="field__label" for="s-url">Адрес обмена</label>
+        <input class="manual__input" id="s-url" type="url" inputmode="url"
+               placeholder="https://progress.example.com" autocomplete="off">
+        <label class="field__label" for="s-token" style="margin-top:.5rem">Пропуск</label>
+        <input class="manual__input" id="s-token" type="password"
+               placeholder="строка из настроек сервера" autocomplete="off">
+        <div class="m-actions">
+          <button class="btn" id="s-save" type="button">Сохранить</button>
+          <button class="btn" id="s-check" type="button">Проверить связь</button>
+          <button class="btn" id="s-run" type="button">Синхронизировать</button>
+        </div>
+        <p class="field__hint">Пропуск хранится только на этом устройстве и на сервер
+          не уезжает. Обмен идёт сам при запуске и раз в несколько минут.</p>
+        <p class="m-note" id="s-note" hidden></p>
       </div>
 
       <h3 class="sheet-panel__sub">Данные</h3>
@@ -93,7 +112,22 @@ export function createMenu({ store, water, onChange, onOpenRecent }) {
     return li;
   }
 
+  async function refreshSync() {
+    const st = await sync.state();
+    $('#s-url').value = st.url ?? '';
+
+    const list = $('#s-facts');
+    list.innerHTML = '';
+    list.append(fact('Настроен', st.configured ? 'да' : 'нет',
+      st.configured ? '' : 'Пока адрес и пропуск не заданы, данные живут только здесь.'));
+    list.append(fact('Последний обмен', st.lastSync
+      ? new Date(st.lastSync).toLocaleString('ru-RU')
+      : 'не было'));
+    list.append(fact('Ждёт отправки', String(st.pending)));
+  }
+
   async function refresh() {
+    await refreshSync();
     $('#m-goal').value = String(await water.goal());
     $('#m-goal-note').hidden = true;
 
@@ -136,6 +170,42 @@ export function createMenu({ store, water, onChange, onOpenRecent }) {
     note.className = 'm-note is-ok';
     note.hidden = false;
     onChange?.();
+  });
+
+  function syncSay(text, kind = '') {
+    const note = $('#s-note');
+    note.textContent = text;
+    note.className = `m-note ${kind}`;
+    note.hidden = !text;
+  }
+
+  $('#s-save').addEventListener('click', async () => {
+    await sync.setConfig({ url: $('#s-url').value, token: $('#s-token').value });
+    $('#s-token').value = '';
+    syncSay('Настройки сохранены.', 'is-ok');
+    await refreshSync();
+  });
+
+  $('#s-check').addEventListener('click', async () => {
+    syncSay('Проверяю…');
+    try {
+      await sync.check();
+      syncSay('Связь есть, пропуск принят.', 'is-ok');
+    } catch (e) {
+      syncSay(`Не вышло: ${e.message}`, 'is-bad');
+    }
+  });
+
+  $('#s-run').addEventListener('click', async () => {
+    syncSay('Обмениваюсь…');
+    try {
+      const { pushed, pulled } = await sync.run();
+      syncSay(`Отправлено ${pushed}, получено ${pulled}.`, 'is-ok');
+      await refresh();
+      onChange?.();
+    } catch (e) {
+      syncSay(`Обмен не удался: ${e.message}`, 'is-bad');
+    }
   });
 
   $('#m-recent').addEventListener('click', () => {
