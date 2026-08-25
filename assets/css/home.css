@@ -171,7 +171,10 @@
   left: 50%;
   bottom: calc(64px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  z-index: 40;
+
+  /* Выше панелей. Удаление происходит внутри открытой панели, и если
+     таблетка окажется под ней, отменить сделанное будет нечем. */
+  z-index: 60;
 }
 
 .undo__btn {
@@ -262,3 +265,96 @@
 }
 
 .records__empty { padding: var(--s-3) 0; color: var(--c-muted); font-size: var(--t-sm); }
+
+/* --- меню --- */
+
+.facts { margin: 0; padding: 0; list-style: none; }
+
+.facts__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--c-line);
+}
+
+.facts__row:first-child { border-top: 0; }
+.facts__label { flex: 1; font-size: var(--t-sm); }
+.facts__value { font-family: var(--f-num); font-size: var(--t-sm); color: var(--c-muted); }
+
+.facts__hint {
+  flex: 1 0 100%;
+  margin: var(--s-1) 0 0;
+  color: var(--c-faint);
+  font-size: var(--t-xs);
+  line-height: 1.35;
+}
+
+.m-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+
+.m-note { margin: var(--s-3) 0 0; color: var(--c-muted); font-size: var(--t-xs); }
+.m-note.is-ok { color: var(--c-ink); }
+.m-note.is-bad { color: var(--c-danger); }
+
+.m-import-mode { margin-top: var(--s-3); }
+
+.btn--danger { border-color: var(--c-danger); color: var(--c-danger); }
+
+.fatal { padding: var(--s-6) var(--s-4); color: var(--c-danger); }
+
+/* --- строки-переходы в меню --- */
+
+.menu-list { margin: 0 0 var(--s-4); padding: 0; list-style: none; }
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-raised);
+  color: var(--c-ink);
+  font-family: var(--f-body);
+  font-size: var(--t-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-link__go { color: var(--c-faint); }
+
+/* --- лента недавних записей --- */
+
+.sheet-panel__hint { margin: var(--s-1) 0 var(--s-4); color: var(--c-muted); font-size: var(--t-xs); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
+
+.chip {
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--c-muted);
+  font-family: var(--f-body);
+  font-size: var(--t-xs);
+  cursor: pointer;
+}
+
+.chip.is-on { border-color: var(--c-chrome); color: var(--c-ink); }
+
+.records__dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; }
+
+.records__main { flex: 1; display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.records__main b { font-family: var(--f-geo); font-weight: 500; }
+.records__main span { color: var(--c-faint); font-size: var(--t-xs); }
+
+/* --- поле настройки --- */
+
+.field { margin-bottom: var(--s-4); }
+.field__label { display: block; margin-bottom: var(--s-2); font-size: var(--t-sm); }
+.field__row { display: flex; gap: var(--s-2); }
+.field__hint { margin: var(--s-2) 0 0; color: var(--c-faint); font-size: var(--t-xs); line-height: 1.35; }

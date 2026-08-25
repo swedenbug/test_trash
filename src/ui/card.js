@@ -35,8 +35,23 @@ function dots(active, total) {
   if (total < 2) return '';        // одна страница — листать нечего
   return `<div class="card__dots">${
     Array.from({ length: total }, (_, i) =>
-      `<i class="${i === active ? 'is-on' : ''}"></i>`).join('')
+      `<button type="button" class="card__dot${i === active ? ' is-on' : ''}"
+         data-page="${i}" aria-label="Страница ${i + 1}"></button>`).join('')
   }</div>`;
+}
+
+/** Внутренности блока графика. Вынесены отдельно, чтобы листание
+    перерисовывало только их, не трогая остальной экран. */
+export function chartBlock({ views = [], page = 0, series = {}, goal = 1 } = {}) {
+  const chart = views[page] ?? null;
+  if (!chart) return '';
+
+  let graph = '';
+  if (chart === 'week-bars') graph = weekBars(series.week ?? []);
+  else if (chart === 'week-line') graph = weekCumulative(series.weekCumulative ?? [], goal * 7);
+  else if (chart === 'day-line') graph = dayCumulative(series.cumulative ?? [], goal);
+
+  return graph + dots(page, views.length);
 }
 
 /* Что показывать в карточке. Четыре переключателя, независимых друг от друга:
@@ -78,16 +93,10 @@ export function cardHtml({
   color = 'var(--c-mod-water)',
 } = {}) {
   const pct = Math.round((value / goal) * 100);
-  const chart = views[page] ?? null;
 
   /* Карточка сжимается, только когда показывать нечего вовсе.
      Картинка есть — высота сохраняется, иначе её не разглядеть. */
   const flat = !background && views.length === 0;
-
-  let graph = '';
-  if (chart === 'week-bars') graph = weekBars(series.week ?? []);
-  else if (chart === 'week-line') graph = weekCumulative(series.weekCumulative ?? [], goal * 7);
-  else if (chart === 'day-line') graph = dayCumulative(series.cumulative ?? [], goal);
 
   return `
     <article class="card${flat ? ' card--flat' : ''}" data-theme="${theme}">
@@ -102,8 +111,7 @@ export function cardHtml({
           </div>
           <span class="card__pct">${pct}<small>%</small></span>
         </div>
-        ${graph}
-        ${dots(page, views.length)}
+        <div class="card__chart">${chartBlock({ views, page, series, goal })}</div>
       </div>
 
       <div class="card__body">

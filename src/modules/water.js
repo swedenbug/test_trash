@@ -69,6 +69,24 @@ export function createWater(store) {
       });
     },
 
+    /**
+     * Задать дневную норму. Действует с сегодняшнего дня: прошлые дни
+     * остаются посчитанными по той норме, что была тогда.
+     */
+    async setGoal(ml) {
+      const date = await today();
+      const rows = await store.list('water_goal');
+      const sameDay = rows.find((r) => r.effective_from === date);
+      return store.put('water_goal', sameDay
+        ? { ...sameDay, ml: Math.round(ml) }
+        : { ml: Math.round(ml), effective_from: date });
+    },
+
+    /** Норма на сегодня. */
+    async goal() {
+      return goalFor(await today());
+    },
+
     remove: (recordId) => store.remove('water_intake', recordId),
     restore: (recordId) => store.restore('water_intake', recordId),
 
@@ -115,6 +133,7 @@ export function createWater(store) {
     },
 
     removeRecord: (recordId) => store.remove('water_intake', recordId),
+    restoreRecord: (recordId) => store.restore('water_intake', recordId),
 
     /* --- Данные для карточки --- */
     async series() {

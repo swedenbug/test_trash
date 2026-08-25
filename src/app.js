@@ -11,17 +11,34 @@ import { createLocalAdapter } from './core/adapter-local.js';
 import { createStore } from './core/store.js';
 import { createWater, TAP, HOLD } from './modules/water.js';
 import { circleSvg } from './ui/circle.js';
-import { cardHtml } from './ui/card.js';
+import { cardHtml, chartBlock } from './ui/card.js';
 import { createUndo } from './ui/undo.js';
-import { attachHold } from './ui/gestures.js';
+import { attachHold, attachSwipe } from './ui/gestures.js';
 import { createWaterScreen } from './ui/water-screen.js';
+import { createMenu } from './ui/menu.js';
+import { createRecent } from './ui/recent.js';
 
 const store = createStore(createLocalAdapter());
 const water = createWater(store);
 
 const undo = createUndo(document.body);
 const screen = createWaterScreen({ water, undo, onChange: render });
-document.body.append(screen.el);
+
+/* Темы для ленты. Неподключённые отдают пустой список — оболочке всё равно,
+   она не знает, что такое вода или подход. */
+const empty = { getRecent: async () => [], removeRecord: async () => {}, restoreRecord: async () => {} };
+const recentThemes = [
+  { id: 'nutrition', short: 'Питание', color: 'var(--c-faint)', ...empty },
+  { id: 'water', short: 'Вода', color: water.color,
+    getRecent: (from) => water.getRecent(from),
+    removeRecord: (recordId) => water.removeRecord(recordId),
+    restoreRecord: (recordId) => water.restoreRecord(recordId) },
+  { id: 'sport', short: 'Спорт', color: 'var(--c-faint)', ...empty },
+];
+
+const recent = createRecent({ themes: recentThemes, undo, onChange: render });
+const menu = createMenu({ store, water, onChange: render, onOpenRecent: () => recent.open() });
+document.body.append(screen.el, menu.el, recent.el);
 
 /* Заглушки тем, по которым ещё нет ни логики, ни брифа на эмблему. */
 const stubs = [
@@ -38,6 +55,8 @@ const WEIGHT = { hard: 2, soft: 1, done: 0 };
 
 let percentUntil = 0;      // до какого момента показывать процент в кружке
 let holdState = null;      // состояние текущего удержания
+const chartPage = {};      // открытая страница графика по темам
+let lastThemes = {};       // последние собранные данные — для перерисовки графика
 
 function stubTheme(s) {
   return {
@@ -103,6 +122,7 @@ function tabbar() {
 
 async function render() {
   const themes = await collect();
+  lastThemes = themes;
 
   const ringOrder = [...order].sort((a, b) => {
     const d = WEIGHT[themes[b].urgency.level] - WEIGHT[themes[a].urgency.level];
@@ -136,7 +156,8 @@ async function render() {
       value: t.urgency.value, goal: t.urgency.goal, unit: t.unit,
       foot: t.foot, series: t.series,
       glyph: t.glyph, color: t.color,
-      views: t.views, background: t.background, page: 0,
+      views: t.views, background: t.background,
+      page: chartPage[key] ?? 0,
     });
   }).join('');
 
@@ -147,6 +168,54 @@ async function render() {
     tabbar();
 
   bindWaterRing();
+  bindCharts();
+  document.querySelector('.topbar__menu').addEventListener('click', () => menu.open());
+}
+
+/* Листание графика. Перерисовывается только сам график: пересборка всего
+   экрана на каждый свайп сбрасывала бы прокрутку ленты. */
+function bindCharts() {
+  for (const [key, theme] of Object.entries(lastThemes)) {
+    if (theme.views.length < 2) continue;
+
+    const box = document.querySelector(`.card[data-theme="${key}"] .card__chart`);
+    if (!box) continue;
+
+    const total = theme.views.length;
+    const go = (page) => {
+      chartPage[key] = (page + total) % total;
+      paintChart(key);
+    };
+
+    attachSwipe(box, {
+      onLeft:  () => go((chartPage[key] ?? 0) + 1),
+      onRight: () => go((chartPage[key] ?? 0) - 1),
+    });
+
+    box.querySelectorAll('.card__dot').forEach((dot) => {
+      dot.addEventListener('click', () => go(Number(dot.dataset.page)));
+    });
+  }
+}
+
+function paintChart(key) {
+  const theme = lastThemes[key];
+  const box = document.querySelector(`.card[data-theme="${key}"] .card__chart`);
+  if (!theme || !box) return;
+
+  box.innerHTML = chartBlock({
+    views: theme.views,
+    page: chartPage[key] ?? 0,
+    series: theme.series,
+    goal: theme.urgency.goal,
+  });
+
+  box.querySelectorAll('.card__dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      chartPage[key] = Number(dot.dataset.page);
+      paintChart(key);
+    });
+  });
 }
 
 function bindWaterRing() {
@@ -199,5 +268,28 @@ async function record(ml, source) {
   }
 }
 
-store.onChange('water_intake', () => { screen.refresh(); });
-render();
+/* Одна подписка на всё. Отмена может прийти откуда угодно — из ленты, с экрана
+   темы, с главного, — и перерисоваться должны все открытые виды сразу.
+   Иначе запись возвращается в хранилище, но на глазах у пользователя остаётся
+   удалённой, и он жмёт отмену второй раз. */
+const refreshAll = () => { render(); screen.refresh(); recent.refresh(); };
+store.onChange('water_intake', refreshAll);
+store.onChange('water_goal', refreshAll);
+
+/* Порядок важен: сначала данные доводятся до текущей версии схемы,
+   и только потом что-либо читается и рисуется. */
+(async function start() {
+  try {
+    await store.init();
+  } catch (e) {
+    document.getElementById('screen').innerHTML =
+      `<p class="fatal">Данные не удалось открыть: ${e.message}</p>`;
+    return;
+  }
+
+  /* Просим браузер не вычищать хранилище. Ответ ни на что не влияет:
+     единственная надёжная защита — копия файлом. */
+  store.requestPersistence().catch(() => {});
+
+  await render();
+})();

@@ -83,3 +83,32 @@ export function attachHold(el, {
     finish();
   };
 }
+
+/*
+  Горизонтальное листание. Вертикальная прокрутка остаётся за страницей:
+  жест считается нашим, только если палец поехал вбок заметно сильнее, чем вниз.
+*/
+const SWIPE_MIN = 40;     // короче этого — случайное дрожание
+const EDGE = 20;          // у самого края Safari перехватывает жест «назад»
+
+export function attachSwipe(el, { onLeft, onRight } = {}) {
+  let x0 = 0, y0 = 0, live = false;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.clientX < EDGE || e.clientX > window.innerWidth - EDGE) return;
+    live = true;
+    x0 = e.clientX;
+    y0 = e.clientY;
+  });
+
+  el.addEventListener('pointerup', (e) => {
+    if (!live) return;
+    live = false;
+    const dx = e.clientX - x0;
+    const dy = e.clientY - y0;
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) <= Math.abs(dy)) return;
+    (dx < 0 ? onLeft : onRight)?.();
+  });
+
+  el.addEventListener('pointercancel', () => { live = false; });
+}
