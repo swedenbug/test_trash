@@ -11,6 +11,7 @@ import {
   schema, collections, validate, normalize, nowIso,
   SCHEMA_VERSION, defaultSettings,
 } from './schema.js';
+import { migrate } from './migrate.js';
 
 export function createStore(adapter) {
   const listeners = new Map();          // таблица → набор обработчиков
@@ -148,6 +149,10 @@ export function createStore(adapter) {
 
       let added = 0;
       for (const c of collections) {
+        // Служебная строка привязана к устройству: идентификатор и версия схемы
+        // чужого телефона здесь только навредят.
+        if (c === 'meta') continue;
+
         const incoming = dump.data?.[c] ?? [];
 
         if (mode === 'replace') {
@@ -173,8 +178,38 @@ export function createStore(adapter) {
 
     /* --- служебное ------------------------------------------------ */
 
+    /** Готовит хранилище: поднимает данные до текущей версии схемы. */
+    async init() {
+      const result = await migrate(adapter);
+      settingsCache = null;
+      return result;
+    },
+
+    async meta() {
+      return (await adapter.readAll('meta'))[0] ?? null;
+    },
+
     async usage() {
       return adapter.usage ? adapter.usage(collections) : null;
+    },
+
+    /** Сколько места занято и сколько разрешено браузером. */
+    async quota() {
+      if (!navigator.storage?.estimate) return null;
+      const { usage, quota } = await navigator.storage.estimate();
+      return { usage, quota };
+    },
+
+    /** Просит браузер не вычищать данные при нехватке места. */
+    async requestPersistence() {
+      if (!navigator.storage?.persist) return null;
+      if (await navigator.storage.persisted()) return true;
+      return navigator.storage.persist();
+    },
+
+    async isPersisted() {
+      if (!navigator.storage?.persisted) return null;
+      return navigator.storage.persisted();
     },
 
     async wipe() {

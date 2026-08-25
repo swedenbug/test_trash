@@ -216,6 +216,43 @@ const tests = [
   },
 
   {
+    name: 'Миграция до текущей версии',
+    async run() {
+      const { to, applied } = await store.init();
+      const meta = await store.meta();
+      if (!meta) throw new Error('служебная строка не создана');
+      if (meta.schema_version !== to) throw new Error('версия не записана');
+      if (!meta.device_id) throw new Error('не назначен идентификатор устройства');
+      return `версия ${to}, шагов применено ${applied.length}`;
+    },
+  },
+
+  {
+    name: 'Идентификатор устройства переживает миграцию',
+    async run() {
+      const before = (await store.meta()).device_id;
+      await store.init();
+      const after = (await store.meta()).device_id;
+      if (before !== after) throw new Error('идентификатор сменился на ровном месте');
+      return 'сохранён';
+    },
+  },
+
+  {
+    name: 'Загрузка не подменяет служебную строку',
+    async run() {
+      const mine = (await store.meta()).device_id;
+      const dump = await store.exportAll();
+      dump.data.meta = [{ id: 'meta', schema_version: 1, device_id: 'чужое-устройство',
+                          updated_at: nowIso() }];
+      await store.importAll(dump, { mode: 'replace' });
+      const after = (await store.meta()).device_id;
+      if (after !== mine) throw new Error('подставлен чужой идентификатор');
+      return 'осталась своя';
+    },
+  },
+
+  {
     name: 'Уборка за собой',
     async run() {
       await store.wipe();
