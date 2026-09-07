@@ -1,12 +1,12 @@
 /*
-  circle.js — кружок модуля для ряда историй.
+  circle.js - кружок модуля для ряда историй.
   Назначение: отрисовать одно состояние кружка. Функция чистая: на входе
   описание состояния, на выходе SVG. Данных не читает, событий не слушает.
   Зависимости: нет.
 
   В кружке два независимых указателя:
-    кольцо по краю — срочность (давно ли занимался),
-    фигура внутри — прогресс дня (сколько от нормы).
+    кольцо по краю - срочность (давно ли занимался),
+    фигура внутри - прогресс дня (сколько от нормы).
 */
 
 let seq = 0;
@@ -16,21 +16,28 @@ let seq = 0;
    отдельный указатель, а не как обводка содержимого. */
 const R_RING = 46;   // осевая линия кольца
 const W_RING = 4;    // толщина кольца
-const R_DISC = 38;   // подложка под фигурой, зазор до кольца — 6
+const R_DISC = 38;   // подложка под фигурой, зазор до кольца - 6
 
 /* Кольцо состояния. Серый повторяет приглушённый стиль, к которому привык
    глаз в мессенджерах: он не должен спорить с содержимым.
-   Зелёный и красный — с переходом, иначе на чёрном фоне кольцо выглядит
+   Зелёный и красный - с переходом, иначе на чёрном фоне кольцо выглядит
    нарисованным маркером. */
 const RING = {
   done: { flat: '#303c4a' },
-  soft: { from: '#3ce07e', to: '#0e9e6a' },
-  hard: { from: '#ff6b4a', to: '#b3121f' },
+  soft: { from: '#4ef29a', to: '#0a8f5c', glow: '#2ecb7f' },
+  hard: { from: '#ff7a55', to: '#a30f1e', glow: '#e0402e' },
 };
 
-/* Капля: остриё сверху, круглое основание снизу. Система координат 100×100.
-   Экспортируется: та же фигура служит эмблемой модуля в карточках и меню. */
-export const DROP = 'M50 8 C50 8 78 42 78 60 A28 28 0 1 1 22 60 C22 42 50 8 50 8 Z';
+/* Фигура внутри кружка - знак темы из общего набора.
+   Капля остаётся значением по умолчанию и экспортируется: та же фигура
+   служит эмблемой в карточках и в меню. */
+import { EMBLEMS, DETAILS, BOXES, fitTransform } from './emblems.js';
+
+export const DROP = EMBLEMS.drop.path;
+
+function shape(emblem) {
+  return (EMBLEMS[emblem] ?? EMBLEMS.drop).path;
+}
 
 /**
  * @param {object} o
@@ -40,8 +47,14 @@ export const DROP = 'M50 8 C50 8 78 42 78 60 A28 28 0 1 1 22 60 C22 42 50 8 50 8
  * @param {number|null} o.percent  число поверх фигуры либо null
  * @param {{lap:1|2, progress:number}|null} o.hold  состояние удержания
  * @param {'normal'|'loading'|'error'} o.state
- * @param {string|null} o.glyph  буква вместо фигуры — для тем без утверждённой эмблемы
+ * @param {string|null} o.glyph  буква вместо фигуры - для тем без утверждённой эмблемы
  * @param {string} o.color       цвет темы
+ * @param {string} o.emblem      знак темы из набора
+ * @param {'fill'|'solid'|'detail'|'letter'|'value'|'percent'} o.content
+ *        чем заполнен кружок внутри кольца
+ * @param {string} o.text        буква или цифры для content = 'letter'
+ * @param {number} o.value       текущее значение для content = 'value'
+ * @param {number} o.goal        норма для content = 'value'
  */
 export function circleSvg({
   size = 72,
@@ -52,6 +65,11 @@ export function circleSvg({
   state = 'normal',
   glyph = null,
   color = 'var(--c-mod-water)',
+  emblem = 'drop',
+  content = 'fill',
+  text = '',
+  value = 0,
+  goal = 0,
 } = {}) {
   const id = `c${++seq}`;
   const ring = RING[level] ?? RING.done;
@@ -59,22 +77,27 @@ export function circleSvg({
   const clamped = Math.max(0, Math.min(1, fill));
   const over = fill > 1;
 
-  /* Поверхность жидкости отсчитывается по телу капли, а не по всей высоте.
-     Иначе последние проценты приходятся на узкое остриё: девяносто процентов
-     и полная капля выглядят одинаково, а разница между ними существенная. */
-  const TOP = 8, BOTTOM = 88;
+  /* Поверхность жидкости отсчитывается по телу знака, а не по всей высоте
+     поля. Иначе у капли последние проценты приходятся на узкое остриё:
+     девяносто процентов и полная капля выглядят одинаково. Границы берутся
+     из измеренных габаритов - у каждого знака они свои. */
+  const gb = BOXES[emblem] ?? [22, 8, 56, 80];
+  const TOP = gb[1], BOTTOM = gb[1] + gb[3];
   const surface = BOTTOM - clamped * (BOTTOM - TOP);
 
   const parts = [];
 
   parts.push(`
     <defs>
-      <clipPath id="${id}-drop"><path d="${DROP}"/></clipPath>
+      <clipPath id="${id}-drop"><path d="${shape(emblem)}"/></clipPath>
       <filter id="${id}-glow" x="-60%" y="-60%" width="220%" height="220%">
         <feGaussianBlur stdDeviation="7"/>
       </filter>
       <filter id="${id}-glow-near" x="-40%" y="-40%" width="180%" height="180%">
         <feGaussianBlur stdDeviation="3"/>
+      </filter>
+      <filter id="${id}-ringglow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3.5"/>
       </filter>
       ${ring.flat ? '' : `<linearGradient id="${id}-ring" x1="0" y1="1" x2="1" y2="0">
         <stop offset="0" stop-color="${ring.from}"/>
@@ -84,6 +107,15 @@ export function circleSvg({
 
   /* Кольцо срочности */
   const ringOpacity = state === 'loading' ? 0.35 : 1;
+
+  /* Свечение под цветным кольцом. Кольцо в четыре сотых диаметра само по себе
+     теряется на чёрном; ореол возвращает ему вес, не утолщая линию. */
+  if (ring.glow && state === 'normal') {
+    parts.push(`<circle cx="50" cy="50" r="${R_RING}" fill="none"
+        stroke="${ring.glow}" stroke-width="7" opacity="0.5"
+        filter="url(#${id}-ringglow)"/>`);
+  }
+
   parts.push(`<circle cx="50" cy="50" r="${R_RING}" fill="none"
       stroke="${state === 'error' ? 'var(--c-line)' : stroke}"
       stroke-width="${W_RING}" opacity="${ringOpacity}"/>`);
@@ -91,23 +123,40 @@ export function circleSvg({
   /* Подложка под фигурой */
   parts.push(`<circle cx="50" cy="50" r="${R_DISC}" fill="var(--c-surface)"/>`);
 
-  /* Фигура прогресса. Буква — временная эмблема темы, по которой ещё нет брифа. */
+  /* Наполнение кружка. Заливка полезна там, где есть дневная норма;
+     где нормы нет, она ничего не сообщает - тогда подробный знак или число. */
   const dropOpacity = state === 'loading' ? 0.25 : 1;
+  const dim = state === 'loading' ? 0.25 : 1;
 
-  if (glyph) {
+  if (content === 'detail' && state === 'normal') {
+    const d = DETAILS[emblem] ?? DETAILS.target;
+    parts.push(`<g transform="translate(50 50) scale(0.54) translate(-50 -50)"
+        fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+        stroke-linejoin="round" style="color:${color}" opacity="${dim}">${d.svg}</g>`);
+  } else if (content === 'solid' && state === 'normal') {
+    parts.push(`<g transform="${fitTransform(emblem, 54)}" opacity="${dim}">
+        <path d="${shape(emblem)}" fill="${color}"/></g>`);
+  } else if (content === 'letter' && state === 'normal') {
+    parts.push(label(text.slice(0, 2), text.length > 1 ? 30 : 38, color, dim));
+  } else if (content === 'value' && state === 'normal') {
+    parts.push(label(String(value), 24, 'var(--c-ink)', dim, -6));
+    parts.push(label(`из ${goal}`, 15, 'var(--c-muted)', dim, 16));
+  } else if (content === 'percent' && state === 'normal') {
+    parts.push(label(`${Math.round((fill || 0) * 100)}%`, 26, 'var(--c-ink)', dim));
+  } else if (glyph) {
     parts.push(`<text x="50" y="52" text-anchor="middle" dominant-baseline="central"
         font-family="var(--f-geo)" font-size="34" fill="${color}"
         opacity="${state === 'loading' ? 0.25 : 0.75}">${glyph}</text>`);
   } else {
-    parts.push(`<g transform="translate(50 50) scale(0.75) translate(-50 -50)" opacity="${dropOpacity}">`);
+    parts.push(`<g transform="${fitTransform(emblem, 54)}" opacity="${dropOpacity}">`);
 
     if (over && state === 'normal') {
-      parts.push(`<path d="${DROP}" fill="${color}" filter="url(#${id}-glow)"/>`);
-      parts.push(`<path d="${DROP}" fill="${color}" filter="url(#${id}-glow-near)"/>`);
+      parts.push(`<path d="${shape(emblem)}" fill="${color}" filter="url(#${id}-glow)"/>`);
+      parts.push(`<path d="${shape(emblem)}" fill="${color}" filter="url(#${id}-glow-near)"/>`);
     }
 
     const outline = state === 'error' ? 0.18 : 0.4;
-    parts.push(`<path d="${DROP}" fill="none" stroke="${color}" stroke-width="3" opacity="${outline}"/>`);
+    parts.push(`<path d="${shape(emblem)}" fill="none" stroke="${color}" stroke-width="3" opacity="${outline}"/>`);
 
     if (clamped > 0 && state === 'normal') {
       parts.push(`<g clip-path="url(#${id}-drop)">
@@ -148,6 +197,14 @@ export function circleSvg({
 
   return `<svg viewBox="0 0 100 100" width="${size}" height="${size}"
       xmlns="http://www.w3.org/2000/svg" role="img">${parts.join('')}</svg>`;
+}
+
+/* Текст по центру кружка. Отдельной функцией, потому что вариантов наполнения
+   с текстом три, и выравнивание у них должно быть одинаковым. */
+function label(textValue, size, color, opacity, dy = 0) {
+  return `<text x="50" y="${50 + dy}" text-anchor="middle" dominant-baseline="central"
+      font-family="var(--f-geo)" font-size="${size}" font-weight="500"
+      fill="${color}" opacity="${opacity}">${textValue}</text>`;
 }
 
 function arc(id, lengthPercent, color, opacity) {

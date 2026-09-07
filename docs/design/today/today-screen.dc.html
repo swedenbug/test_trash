@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0a0a0b;color:#eceff2;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#8c949c;text-decoration:none}a:hover{color:#eceff2}
+button{-webkit-tap-highlight-color:transparent}
+</style>
+</helmet>
+<div data-screen-label="Сегодня" style="min-height:100vh;display:flex;justify-content:center;background:#0a0a0b">
+<div style="width:100%;max-width:440px;display:flex;flex-direction:column;min-height:100vh;border-left:1px solid rgba(255,255,255,0.055);border-right:1px solid rgba(255,255,255,0.055)">
+
+<div style="position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:0 16px;background:rgba(10,10,11,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+<span style="color:#8c949c;font-size:14px">{{dateStr}}</span>
+<button aria-label="Меню" style="display:flex;flex-direction:column;justify-content:center;gap:5px;width:44px;height:44px;margin-right:-10px;border:0;background:none;cursor:pointer;align-items:center">
+<span style="display:block;width:20px;height:2px;border-radius:1px;background:#eceff2"></span>
+<span style="display:block;width:20px;height:2px;border-radius:1px;background:#eceff2"></span>
+</button>
+</div>
+
+<div style="padding:0 16px">
+<div style="display:flex;align-items:center;gap:8px;margin:14px 0 12px">
+<span style="font-size:16px;font-weight:600">Ждут</span>
+<span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;color:#8c949c;background:#1c1e21;border-radius:999px;padding:2px 8px">{{waitCount}}</span>
+</div>
+
+<sc-for list="{{waiting}}" as="item" hint-placeholder-count="5">
+<div style="overflow:{{item.ov}};max-height:{{item.mh}};opacity:{{item.op}};transform:translateY({{item.ty}});margin-bottom:{{item.mb}};transition:opacity .4s ease,transform .4s ease,max-height .45s ease .06s,margin-bottom .45s ease .06s">
+<div style="position:relative;display:flex;align-items:center;gap:12px;padding:13px 13px 13px 18px;background:#141517;border:1px solid #2a2d31;border-radius:16px;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease" style-hover="transform:translateY(-2px);border-color:rgba(230,234,238,0.40);box-shadow:0 0 0 1px rgba(230,234,238,0.16),0 6px 22px rgba(230,234,238,0.07),0 10px 26px rgba(0,0,0,0.45)">
+<span style="position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:58%;border-radius:0 3px 3px 0;background:{{item.tick}}"></span>
+<span style="flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:{{item.iconBg}}">
+<svg viewBox="0 0 100 100" width="24" height="24" aria-hidden="true"><path d="{{item.iconD}}" fill="{{item.color}}" opacity="0.92"></path></svg>
+</span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+<span style="font-size:15px;font-weight:600;line-height:1.25">{{item.name}}</span>
+<span style="font-size:12.5px;line-height:1.3;color:#8c949c">{{item.sub}}</span>
+<sc-if value="{{item.hasBar}}" hint-placeholder-val="{{ true }}">
+<span style="display:block;height:4px;border-radius:2px;background:rgba(255,255,255,0.10);overflow:hidden;margin-top:3px"><span style="display:block;height:100%;border-radius:2px;background:{{item.color}};width:{{item.pct}};transition:width .5s cubic-bezier(.3,.7,.3,1)"></span></span>
+</sc-if>
+</span>
+<span style="flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+<button onClick="{{item.act}}" style="min-width:72px;height:44px;padding:0 16px;border-radius:22px;border:1px solid {{item.btnBorder}};background:{{item.btnBg}};color:#eceff2;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s ease,border-color .25s ease,transform .1s ease" style-active="transform:scale(0.95)">{{item.btn}}</button>
+<sc-if value="{{item.canClose}}" hint-placeholder-val="{{ false }}">
+<button onClick="{{item.closeAct}}" style="min-height:36px;padding:0 6px;border:0;background:none;color:#8c949c;font-family:inherit;font-size:12px;white-space:nowrap;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(140,148,156,0.4);transition:color .15s" style-hover="color:#eceff2">на сегодня всё</button>
+</sc-if>
+<span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;color:#5b6268;white-space:nowrap">{{item.last}}</span>
+</span>
+</div>
+</div>
+</sc-for>
+
+<div style="margin:22px 0 10px">
+<div style="display:flex;align-items:center;gap:8px">
+<span style="font-size:16px;font-weight:600">Сделано</span>
+<span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;color:#8c949c;background:#1c1e21;border-radius:999px;padding:2px 8px">{{doneCount}}</span>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:{{dayPhraseColor}};white-space:nowrap">{{dayPhrase}}</span>
+</div>
+<div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:9px"><span style="display:block;height:100%;border-radius:2px;width:{{dayPct}};background:{{dayBarBg}};transition:width .5s cubic-bezier(.3,.7,.3,1),background .4s ease"></span></div>
+</div>
+
+<sc-for list="{{doneList}}" as="d" hint-placeholder-count="2">
+<div style="margin-bottom:8px">
+<sc-if value="{{d.closed}}" hint-placeholder-val="{{ true }}">
+<button onClick="{{d.toggle}}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:6px 8px;border:0;border-radius:12px;background:none;color:#eceff2;font-family:inherit;font-size:14px;text-align:left;cursor:pointer;opacity:0.55;transition:opacity .15s ease,background .15s ease" style-hover="opacity:0.85;background:#141517">
+<svg viewBox="0 0 100 100" width="20" height="20" aria-hidden="true"><path d="{{d.iconD}}" fill="{{d.color}}"></path></svg>
+<span style="flex:1">{{d.name}}</span>
+<span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11px;color:#8c949c;white-space:nowrap">{{d.note}}</span>
+</button>
+</sc-if>
+<sc-if value="{{d.opened}}" hint-placeholder-val="{{ false }}">
+<button onClick="{{d.toggle}}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:13px 13px 13px 18px;background:#141517;border:1px solid #2a2d31;border-radius:16px;opacity:0.62;color:#eceff2;font-family:inherit;text-align:left;cursor:pointer">
+<span style="flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:{{d.iconBg}}">
+<svg viewBox="0 0 100 100" width="24" height="24" aria-hidden="true"><path d="{{d.iconD}}" fill="{{d.color}}" opacity="0.92"></path></svg>
+</span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+<span style="font-size:15px;font-weight:600;line-height:1.25">{{d.name}}</span>
+<span style="font-size:12.5px;color:#8c949c">{{d.note}}</span>
+<span style="display:block;height:4px;border-radius:2px;background:rgba(255,255,255,0.10);overflow:hidden;margin-top:3px"><span style="display:block;height:100%;border-radius:2px;background:{{d.color}};width:100%"></span></span>
+</span>
+<svg viewBox="0 0 100 100" width="16" height="16" aria-hidden="true" style="flex:0 0 auto"><path d="M20 52 L42 72 L82 30 L74 23 L42 57 L27 44 Z" fill="#e6eaee" opacity="0.7"></path></svg>
+</button>
+</sc-if>
+</div>
+</sc-for>
+
+<div style="margin:26px -16px 0;border-top:1px solid rgba(255,255,255,0.055)"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 2px">
+<span style="font-size:18px;font-weight:700">Цели</span>
+<span style="display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid rgba(224,163,46,0.45);border-radius:999px;color:#e0a32e;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;font-weight:600">
+<svg viewBox="0 0 100 100" width="13" height="13" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#e0a32e" stroke-width="8"></circle><path d="M50 50 L50 8 A42 42 0 0 1 92 50 Z" fill="#e0a32e" opacity="0.85"></path><path d="M50 50 L50 92 A42 42 0 0 1 8 50 Z" fill="#e0a32e" opacity="0.85"></path></svg>
+14</span>
+</div>
+<div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#5b6268;margin:12px 0 10px">Активные</div>
+
+<sc-for list="{{goalsActive}}" as="g" hint-placeholder-count="3">
+<div style="position:relative;overflow:hidden;border:1px solid {{g.border}};border-radius:16px;padding:14px 16px;margin-bottom:12px;background:{{g.bg}};transition:border-color .18s ease,box-shadow .18s ease" style-hover="border-color:{{g.hBorder}};box-shadow:{{g.hShadow}}">
+<sc-if value="{{g.hasRibbon}}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;top:14px;right:-32px;width:110px;height:7px;transform:rotate(45deg);background:{{g.ribbonBg}};box-shadow:0 0 12px {{g.ribbonGlow}}"></span>
+</sc-if>
+<sc-if value="{{g.isDone}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 100 100" width="17" height="17" aria-hidden="true" style="position:absolute;top:10px;right:10px;filter:drop-shadow(0 0 6px rgba(224,163,46,0.65)) drop-shadow(0 0 14px rgba(224,163,46,0.30))"><path d="M18 68 L12 30 L34 46 L50 18 L66 46 L88 30 L82 68 Z" fill="#e0a32e"></path><path d="M20 74 H80 V82 H20 Z" fill="#e0a32e"></path></svg>
+</sc-if>
+<div style="font-size:15px;font-weight:600;line-height:1.3;padding-right:24px">{{g.title}}</div>
+<div style="font-size:12.5px;color:#8c949c;margin:2px 0 10px">{{g.theme}}</div>
+<div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.10);overflow:hidden"><span style="display:block;height:100%;width:{{g.pct}};border-radius:3px;background:{{g.barBg}}"></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px">
+<span style="font-size:12px;color:#8c949c">{{g.days}}</span>
+<button onClick="{{g.toggle}}" aria-label="Подробности цели" style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-4px -16px -12px 0;border:0;background:none;cursor:pointer"><span style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid #2a2d31;border-radius:50%;background:#1c1e21;color:#8c949c;font-size:15px;line-height:1">{{g.plus}}</span></button>
+</div>
+<sc-if value="{{g.isOpen}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.055)">
+<p style="margin:0 0 6px;font-size:12.5px;line-height:1.45;color:#8c949c;text-wrap:pretty">{{g.desc}}</p>
+<span style="font-size:12px;color:{{g.reserveColor}}">{{g.reserveLine}}</span>
+</div>
+</sc-if>
+</div>
+</sc-for>
+
+<button onClick="{{toggleDoneGoals}}" style="display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 2px;margin:2px 0 4px;border:0;background:none;color:#5b6268;font-family:inherit;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-align:left;cursor:pointer;transition:color .15s" style-hover="color:#8c949c">
+<span style="white-space:nowrap">Завершённые · {{doneGoalsCount}}</span>
+<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" style="transform:rotate({{chevRot}});transition:transform .2s ease"><path d="M3 5 L8 10 L13 5" fill="none" stroke="#5b6268" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+
+<sc-if value="{{showDoneGoals}}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{goalsDone}}" as="g" hint-placeholder-count="1">
+<div style="position:relative;overflow:hidden;border:1px solid {{g.border}};border-radius:16px;padding:14px 16px;margin-bottom:12px;background:{{g.bg}};transition:border-color .18s ease,box-shadow .18s ease" style-hover="border-color:{{g.hBorder}};box-shadow:{{g.hShadow}}">
+<svg viewBox="0 0 100 100" width="17" height="17" aria-hidden="true" style="position:absolute;top:10px;right:10px;filter:drop-shadow(0 0 6px rgba(224,163,46,0.65)) drop-shadow(0 0 14px rgba(224,163,46,0.30))"><path d="M18 68 L12 30 L34 46 L50 18 L66 46 L88 30 L82 68 Z" fill="#e0a32e"></path><path d="M20 74 H80 V82 H20 Z" fill="#e0a32e"></path></svg>
+<div style="font-size:15px;font-weight:600;line-height:1.3;padding-right:24px">{{g.title}}</div>
+<div style="font-size:12.5px;color:#8c949c;margin:2px 0 10px">{{g.theme}}</div>
+<div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.10);overflow:hidden"><span style="display:block;height:100%;width:{{g.pct}};border-radius:3px;background:{{g.barBg}}"></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px">
+<span style="font-size:12px;color:#8c949c">{{g.days}}</span>
+<button onClick="{{g.toggle}}" aria-label="Подробности цели" style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-4px -16px -12px 0;border:0;background:none;cursor:pointer"><span style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid #2a2d31;border-radius:50%;background:#1c1e21;color:#8c949c;font-size:15px;line-height:1">{{g.plus}}</span></button>
+</div>
+<sc-if value="{{g.isOpen}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.055)">
+<p style="margin:0 0 6px;font-size:12.5px;line-height:1.45;color:#8c949c;text-wrap:pretty">{{g.desc}}</p>
+<span style="font-size:12px;color:{{g.reserveColor}}">{{g.reserveLine}}</span>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</sc-if>
+
+<p style="margin:20px 4px 12px;font-size:12.5px;line-height:1.45;color:#8c949c;text-wrap:pretty">Не успеваешь - скажи об этом заранее. Объявленный пропуск тратит запас, срывом не считается.</p>
+<button style="min-height:44px;padding:0 20px;margin-bottom:24px;border:1px solid #2a2d31;border-radius:12px;background:#1c1e21;color:#eceff2;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap;align-self:flex-start;transition:background .15s" style-active="background:#141517">Сегодня пропускаю</button>
+</div>
+
+<div style="margin-top:auto;border-top:1px solid rgba(255,255,255,0.055);padding-bottom:env(safe-area-inset-bottom)">
+<div style="display:flex;justify-content:space-around;align-items:center">
+<button aria-label="Главная" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#8c949c" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11 V20 H14 V15 H10 V20 H4 Z"></path></svg></button>
+<button aria-label="Сегодня" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#eceff2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 H14 M4 11 H12 M4 16 H10"></path><path d="M14 15 L16.5 17.5 L21 13"></path></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+</div>
+</div>
+
+</div>
+</div>
+
+<sc-if value="{{undoOn}}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60">
+<button onClick="{{undoAct}}" style="display:flex;align-items:center;gap:12px;min-height:44px;padding:0 14px 0 20px;border:1px solid #2a2d31;border-radius:999px;background:rgba(28,30,33,0.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#eceff2;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap">
+<span>{{undoLabel}}</span>
+<svg viewBox="0 0 36 36" width="20" height="20" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="#2a2d31" stroke-width="3"></circle><circle cx="18" cy="18" r="15" fill="none" stroke="#eceff2" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="{{undoDash}}" transform="rotate(-90 18 18)"></circle></svg>
+</button>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  ICONS = {
+    water: 'M50 8 C50 8 78 42 78 60 A28 28 0 1 1 22 60 C22 42 50 8 50 8 Z',
+    push: 'M6 40 H16 V60 H6 Z M20 32 H32 V68 H20 Z M68 32 H80 V68 H68 Z M84 40 H94 V60 H84 Z M36 45 H64 V55 H36 Z',
+    read: 'M12 24 H44 V76 H12 Z M56 24 H88 V76 H56 Z M46 26 H54 V78 H46 Z',
+    coffee: 'M18 30 H70 V48 A26 26 0 0 1 18 48 Z M72 34 H78 A12 12 0 0 1 78 58 H70 V50 H77 A5 5 0 0 0 77 42 H72 Z',
+    mood: 'M50 84 C20 60 12 42 22 30 C30 21 44 24 50 34 C56 24 70 21 78 30 C88 42 80 60 50 84 Z',
+    check: 'M20 52 L42 72 L82 30 L74 23 L42 57 L27 44 Z',
+    pill: 'M30 20 H70 A14 14 0 0 1 84 34 V66 A14 14 0 0 1 70 80 H30 A14 14 0 0 1 16 66 V34 A14 14 0 0 1 30 20 Z'
+  };
+  T = [
+    { id: 'water', name: 'Водный баланс', color: '#58b6ee', goal: 2500, step: 250, btn: '+250', level: 'soft', last: '2 ч назад', unit: v => `${v} из 2500 мл` },
+    { id: 'push', name: 'Отжимания', color: '#3ce07e', goal: 50, step: 10, btn: '+10', level: 'done', last: '4 ч назад', unit: v => `${v} из 50 раз` },
+    { id: 'read', name: 'Чтение', color: '#a78bfa', goal: 30, step: 1, btn: 'Таймер', level: 'hard', last: 'вчера', unit: v => `${v} из 30 минут` },
+    { id: 'coffee', name: 'Кофе', color: '#e0a32e', goal: 3, step: 1, btn: '+1', level: 'done', last: '3 ч назад', limit: true, unit: v => `${v} из 3 чашек, не более` },
+    { id: 'mood', name: 'Настроение', color: '#f472b6', goal: 1, btn: 'Оценить', level: 'done', last: '', noBar: true, unit: () => 'ещё не отмечено' }
+  ];
+  RANK = { hard: 0, soft: 1, done: 2 };
+  TICK = {
+    done: '#303c4a',
+    soft: 'linear-gradient(180deg,#3ce07e,#0e9e6a)',
+    hard: 'linear-gradient(180deg,#ff6b4a,#b3121f)'
+  };
+  GOALS = [
+    { id: 'g-read', title: 'Чтение перед сном', theme: 'Чтение', color: '#a78bfa', day: 83, span: 90, reserve: '4 из 9', low: false,
+      desc: 'Полчаса чтения каждый вечер. Пропуск тратит запас, но не обнуляет пройденного.' },
+    { id: 'g-push', title: 'Отжимания три раза в неделю', theme: 'Отжимания', color: '#3ce07e', day: 45, span: 60, reserve: '1 из 6', low: true,
+      desc: 'Три подхода по норме в неделю. Объявленный заранее пропуск срывом не считается.' },
+    { id: 'g-water', title: 'Норма воды ежедневно', theme: 'Водный баланс', color: '#58b6ee', day: 24, span: 90, reserve: '7 из 9', low: false,
+      desc: 'Выпивать 2500 мл каждый день в течение 90 дней.' },
+    { id: 'g-zar', title: 'Месяц утренней зарядки', theme: 'Зарядка', color: '#3ce07e', day: 30, span: 30, done: true,
+      desc: 'Завершена 2 сентября. Все 30 дней на месте.', reward: '+5 кредитов доверия' }
+  ];
+  state = {
+    vals: { water: 500, push: 20, read: 12, coffee: 2, mood: 0 },
+    leaving: {}, gone: {}, flash: null, running: false,
+    done: [
+      { id: 'zar', name: 'Зарядка', color: '#3ce07e', iconD: 'M20 52 L42 72 L82 30 L74 23 L42 57 L27 44 Z', note: 'выполнено в 7:40' },
+      { id: 'vit', name: 'Витамины', color: '#f472b6', iconD: 'M30 20 H70 A14 14 0 0 1 84 34 V66 A14 14 0 0 1 70 80 H30 A14 14 0 0 1 16 66 V34 A14 14 0 0 1 30 20 Z', note: 'выполнено в 9:05' }
+    ],
+    doneOpen: {}, goalOpen: {}, showDoneGoals: false,
+    undo: null, undoLeft: 1
+  };
+  rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+  }
+  now() { return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); }
+  snapshot() {
+    return {
+      vals: { ...this.state.vals },
+      leaving: { ...this.state.leaving },
+      gone: { ...this.state.gone },
+      done: [...this.state.done],
+      running: this.state.running
+    };
+  }
+  pushUndo(label) {
+    clearInterval(this._undoIv);
+    const started = performance.now();
+    this._undoIv = setInterval(() => {
+      const left = 1 - (performance.now() - started) / 7000;
+      if (left <= 0) { clearInterval(this._undoIv); this.setState({ undo: null, undoLeft: 1 }); }
+      else this.setState({ undoLeft: left });
+    }, 100);
+    this.setState({ undoLeft: 1, undo: { label, snap: this._snapBefore } });
+  }
+  doUndo = () => {
+    const u = this.state.undo;
+    clearInterval(this._undoIv);
+    clearTimeout(this._leaveTm);
+    if (this.state.running) { clearInterval(this._readIv); }
+    if (u) this.setState({ ...u.snap, undo: null, undoLeft: 1, running: false });
+  };
+  flashBtn(id) {
+    clearTimeout(this._flashTm);
+    this.setState({ flash: id });
+    this._flashTm = setTimeout(() => this.setState({ flash: null }), 320);
+  }
+  complete(t, note) {
+    this.setState(s => ({ leaving: { ...s.leaving, [t.id]: true } }));
+    this._leaveTm = setTimeout(() => {
+      this.setState(s => ({
+        gone: { ...s.gone, [t.id]: true },
+        done: [...s.done, { id: t.id, name: t.name, color: t.color, iconD: this.ICONS[t.id], note }]
+      }));
+    }, 550);
+  }
+  closeLimit(t) {
+    this._snapBefore = this.snapshot();
+    this.complete(t, `в пределах нормы · ${this.now()}`);
+    this.pushUndo('Отменить закрытие');
+  }
+  act(t) {
+    if (this.state.leaving[t.id]) return;
+    this._snapBefore = this.snapshot();
+    this.flashBtn(t.id);
+    if (t.id === 'mood') {
+      this.complete(t, 'отмечено в ' + this.now());
+      this.pushUndo('Отменить оценку');
+      return;
+    }
+    if (t.id === 'read') {
+      if (this.state.running) {
+        clearInterval(this._readIv);
+        this._snapBefore = this._readSnap;
+        this.setState({ running: false });
+        this.pushUndo('Отменить чтение');
+      } else {
+        this._readSnap = this.snapshot();
+        this.setState({ running: true });
+        this._readIv = setInterval(() => {
+          const v = this.state.vals.read + 1;
+          this.setState(s => ({ vals: { ...s.vals, read: v } }));
+          if (v >= t.goal) {
+            clearInterval(this._readIv);
+            this.setState({ running: false });
+            this._snapBefore = this._readSnap;
+            this.complete(t, 'выполнено в ' + this.now());
+            this.pushUndo('Отменить чтение');
+          }
+        }, 700);
+      }
+      return;
+    }
+    const v = Math.min(t.goal, this.state.vals[t.id] + t.step);
+    this.setState(s => ({ vals: { ...s.vals, [t.id]: v } }));
+    if (v >= t.goal && !t.limit) this.complete(t, 'выполнено в ' + this.now());
+    this.pushUndo(`Отменить +${t.step}`);
+  }
+  componentWillUnmount() {
+    clearInterval(this._undoIv); clearInterval(this._readIv);
+    clearTimeout(this._flashTm); clearTimeout(this._leaveTm);
+  }
+  renderVals() {
+    const s = this.state;
+    const d = new Date();
+    const waiting = this.T
+      .filter(t => !s.gone[t.id])
+      .sort((a, b) => this.RANK[a.level] - this.RANK[b.level])
+      .map(t => {
+        const v = s.vals[t.id];
+        const leaving = s.leaving[t.id];
+        const running = t.id === 'read' && s.running;
+        const flash = s.flash === t.id;
+        return {
+          name: t.name, sub: t.unit(v),
+          btn: running ? 'Стоп' : t.btn,
+          color: t.color, iconD: this.ICONS[t.id], iconBg: this.rgba(t.color, 0.13),
+          tick: this.TICK[t.level], hasBar: !t.noBar,
+          pct: Math.round(Math.min(1, v / t.goal) * 100) + '%',
+          last: t.last, act: () => this.act(t),
+          canClose: !!t.limit, closeAct: () => this.closeLimit(t),
+          btnBg: flash ? this.rgba(t.color, 0.38) : '#1c1e21',
+          btnBorder: flash || running ? t.color : '#2a2d31',
+          mh: leaving ? '0px' : '180px', op: leaving ? 0 : 1,
+          ty: leaving ? '20px' : '0px', mb: leaving ? '0px' : '12px'
+        };
+      });
+    const doneList = s.done.map(x => ({
+      ...x,
+      iconBg: this.rgba(x.color, 0.13),
+      opened: !!s.doneOpen[x.id],
+      closed: !s.doneOpen[x.id],
+      toggle: () => this.setState(st => ({ doneOpen: { ...st.doneOpen, [x.id]: !st.doneOpen[x.id] } }))
+    }));
+    const mapGoal = g => {
+      const pct = g.day / g.span;
+      const gold = !g.done && pct >= 0.9;
+      const chrome = !g.done && !gold && pct >= 0.7;
+      const open = !!s.goalOpen[g.id];
+      return {
+        title: g.title, theme: g.theme,
+        pct: Math.round(pct * 100) + '%', barBg: g.color,
+        days: g.done ? `Завершена - день ${g.day} из ${g.span}` : `День ${g.day} из ${g.span}`,
+        bg: g.done
+          ? 'radial-gradient(130% 130% at 0% 0%, rgba(224,163,46,0.10), rgba(224,163,46,0) 58%), #141517'
+          : `radial-gradient(130% 130% at 0% 0%, ${this.rgba(g.color, 0.13)}, ${this.rgba(g.color, 0)} 58%), #141517`,
+        border: gold ? 'rgba(224,163,46,0.45)' : chrome ? 'rgba(230,234,238,0.30)' : '#2a2d31',
+        hBorder: g.done ? 'rgba(224,163,46,0.75)' : gold ? 'rgba(224,163,46,0.45)' : chrome ? 'rgba(230,234,238,0.30)' : '#2a2d31',
+        hShadow: g.done ? '0 0 0 1px rgba(224,163,46,0.35), 0 6px 24px rgba(224,163,46,0.14)' : 'none',
+        hasRibbon: gold || chrome,
+        ribbonBg: gold
+          ? 'linear-gradient(90deg,#e0a32e,#f6d27a,#e0a32e)'
+          : 'linear-gradient(90deg,#7c858d,#eef3f7,#7c858d)',
+        ribbonGlow: gold ? 'rgba(224,163,46,0.5)' : 'rgba(230,234,238,0.35)',
+        isDone: !!g.done,
+        isOpen: open, plus: open ? '−' : '+',
+        toggle: () => this.setState(st => ({ goalOpen: { ...st.goalOpen, [g.id]: !st.goalOpen[g.id] } })),
+        desc: g.desc,
+        reserveLine: g.done ? g.reward : `Пропусков в запасе: ${g.reserve}`,
+        reserveColor: g.done ? '#e0a32e' : g.low ? '#e0a32e' : '#8c949c'
+      };
+    };
+    const goalsActive = this.GOALS.filter(g => !g.done).map(mapGoal);
+    const goalsDone = this.GOALS.filter(g => g.done).map(mapGoal);
+    const total = doneList.length + waiting.length;
+    const dayPct = total ? doneList.length / total : 0;
+    const rem = waiting.length;
+    const remWord = rem % 10 === 1 && rem % 100 !== 11 ? 'дело'
+      : [2, 3, 4].includes(rem % 10) && ![12, 13, 14].includes(rem % 100) ? 'дела' : 'дел';
+    return {
+      dayPct: Math.round(dayPct * 100) + '%',
+      dayBarBg: dayPct >= 1 ? 'linear-gradient(90deg,#e0a32e,#f6d27a,#e0a32e)'
+        : dayPct >= 0.7 ? 'linear-gradient(90deg,#7c858d,#eef3f7,#7c858d)' : '#5b6268',
+      dayPhrase: rem === 0 ? 'День выполнен целиком' : `До полного дня - ${rem} ${remWord}`,
+      dayPhraseColor: dayPct >= 1 ? '#e0a32e' : '#8c949c',
+      showDoneGoals: s.showDoneGoals,
+      doneGoalsCount: this.GOALS.filter(g => g.done).length,
+      chevRot: s.showDoneGoals ? '180deg' : '0deg',
+      toggleDoneGoals: () => this.setState(st => ({ showDoneGoals: !st.showDoneGoals })),
+      dateStr: d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' + d.toLocaleDateString('ru-RU', { weekday: 'long' }),
+      waiting, waitCount: waiting.length,
+      doneList, doneCount: doneList.length,
+      goalsActive, goalsDone,
+      undoOn: !!s.undo,
+      undoLabel: s.undo ? s.undo.label : '',
+      undoDash: `${(s.undoLeft * 100).toFixed(1)} 100`,
+      undoAct: this.doUndo
+    };
+  }
+}
+</script>
+</body>
+</html>

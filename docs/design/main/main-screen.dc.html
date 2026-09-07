@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#0a0a0b;color:#eceff2;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#8c949c;text-decoration:none}a:hover{color:#eceff2}
+button{-webkit-tap-highlight-color:transparent}
+</style>
+<script src="./image-slot.js"></script>
+</helmet>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<linearGradient id="g-soft" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4ef29a"></stop><stop offset="1" stop-color="#0a8f5c"></stop></linearGradient>
+<linearGradient id="g-hard" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff7a55"></stop><stop offset="1" stop-color="#a30f1e"></stop></linearGradient>
+<filter id="ring-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.5"></feGaussianBlur></filter>
+<clipPath id="clip-water"><path d="M50 8 C50 8 78 42 78 60 A28 28 0 1 1 22 60 C22 42 50 8 50 8 Z"></path></clipPath>
+<clipPath id="clip-push"><path d="M6 40 H16 V60 H6 Z M20 32 H32 V68 H20 Z M68 32 H80 V68 H68 Z M84 40 H94 V60 H84 Z M36 45 H64 V55 H36 Z"></path></clipPath>
+<clipPath id="clip-read"><path d="M12 24 H44 V76 H12 Z M56 24 H88 V76 H56 Z M46 26 H54 V78 H46 Z"></path></clipPath>
+<clipPath id="clip-coffee"><path d="M18 30 H70 V48 A26 26 0 0 1 18 48 Z M72 34 H78 A12 12 0 0 1 78 58 H70 V50 H77 A5 5 0 0 0 77 42 H72 Z"></path></clipPath>
+<clipPath id="clip-mood"><path d="M50 84 C20 60 12 42 22 30 C30 21 44 24 50 34 C56 24 70 21 78 30 C88 42 80 60 50 84 Z"></path></clipPath>
+</defs>
+</svg>
+<div data-screen-label="Главный" style="min-height:100vh;display:flex;justify-content:center;background:#0a0a0b">
+<div style="width:100%;max-width:440px;display:flex;flex-direction:column;min-height:100vh;border-left:1px solid rgba(255,255,255,0.055);border-right:1px solid rgba(255,255,255,0.055)">
+
+<div style="position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:0 16px;background:rgba(10,10,11,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+<span style="color:#8c949c;font-size:14px">{{dateStr}}</span>
+<button aria-label="Меню" style="display:flex;flex-direction:column;justify-content:center;gap:5px;width:44px;height:44px;margin-right:-10px;border:0;background:none;cursor:pointer;align-items:center">
+<span style="display:block;width:20px;height:2px;border-radius:1px;background:#eceff2"></span>
+<span style="display:block;width:20px;height:2px;border-radius:1px;background:#eceff2"></span>
+</button>
+</div>
+
+<div style="border-bottom:1px solid rgba(255,255,255,0.055);padding:8px 0 12px;overflow-x:auto;scrollbar-width:none">
+<div style="display:flex;gap:16px;padding:0 16px">
+<sc-for list="{{rings}}" as="r" hint-placeholder-count="6">
+<div onClick="{{r.tap}}" title="{{r.hint}}" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto;width:76px;user-select:none;-webkit-user-select:none;cursor:{{r.cursor}};transition:transform .12s ease" style-active="transform:scale(0.94)">
+<svg viewBox="0 0 100 100" width="68" height="68" role="img">
+<circle cx="50" cy="50" r="46" fill="none" stroke="{{r.glowColor}}" stroke-width="7" opacity="{{r.glowOp}}" filter="url(#ring-blur)"></circle>
+<circle cx="50" cy="50" r="46" fill="none" stroke="{{r.ringStroke}}" stroke-width="4"></circle>
+<circle cx="50" cy="50" r="38" fill="#141517"></circle>
+<sc-if value="{{r.hasIcon}}" hint-placeholder-val="{{ true }}">
+<g transform="translate(50 50) scale(0.59) translate(-50 -50)">
+<path d="{{r.iconD}}" fill="none" stroke="{{r.color}}" stroke-width="3" opacity="0.4"></path>
+<g clip-path="{{r.clip}}"><rect x="0" width="100" height="100" fill="{{r.color}}" style="y:{{r.surfaceY}}px;transition:y .45s ease"></rect></g>
+</g>
+</sc-if>
+<sc-if value="{{r.isGlyph}}" hint-placeholder-val="{{ false }}">
+<text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-family="'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif" font-size="32" fill="#5b6268">{{r.glyph}}</text>
+</sc-if>
+<sc-if value="{{r.showPct}}" hint-placeholder-val="{{ false }}">
+<circle cx="50" cy="50" r="38" fill="#0a0a0b" opacity="0.74"></circle>
+<text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="24" font-weight="600" fill="#eceff2">{{r.pctText}}</text>
+</sc-if>
+</svg>
+<span style="font-size:12px;white-space:nowrap;color:{{r.labelColor}}">{{r.label}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px;padding:16px 16px 24px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+<div style="position:relative;display:flex;flex-direction:column;overflow:hidden;border:1px solid #2a2d31;border-radius:22px;background:#141517;isolation:isolate;min-height:{{c.minH}}">
+<sc-if value="{{c.hasPhoto}}" hint-placeholder-val="{{ false }}">
+<img src="assets/water-bg.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:{{c.imgOp}};filter:{{c.imgFilter}};transition:opacity .45s ease,filter .45s ease">
+</sc-if>
+<sc-if value="{{c.hasSlot}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;opacity:{{c.slotOp}};filter:{{c.slotFilter}};transition:opacity .45s ease,filter .45s ease"><image-slot id="{{c.slotId}}" shape="rect" placeholder="фото темы - перетащите сюда"></image-slot></div>
+</sc-if>
+<sc-if value="{{c.hasScrim}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;pointer-events:none;background:{{c.scrimBg}};transition:background .35s ease"></div>
+</sc-if>
+
+<div style="position:relative;display:flex;align-items:flex-start;gap:8px;padding:16px 16px 8px;pointer-events:none">
+<sc-if value="{{c.hasEmblem}}" hint-placeholder-val="{{ true }}">
+<svg viewBox="0 0 100 100" width="18" height="18" style="flex:0 0 auto;margin-top:2px"><path d="{{c.iconD}}" fill="{{c.color}}" opacity="0.9"></path></svg>
+</sc-if>
+<sc-if value="{{c.hasGlyphEmblem}}" hint-placeholder-val="{{ false }}">
+<span style="flex:0 0 auto;width:18px;height:18px;margin-top:2px;display:flex;align-items:center;justify-content:center;font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:15px;color:#5b6268">{{c.glyph}}</span>
+</sc-if>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;opacity:{{c.textOp}}">
+<span style="font-size:14px;letter-spacing:0.02em;color:{{c.ink}};text-shadow:{{c.shadow}}">{{c.title}}</span>
+<sc-if value="{{c.showDesc}}" hint-placeholder-val="{{ true }}"><span style="color:{{c.ink2}};font-size:12px;line-height:1.3;text-shadow:{{c.shadow}}">{{c.desc}}</span></sc-if>
+</span>
+<span style="flex:0 0 auto;font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:20px;line-height:1;color:{{c.ink2}};opacity:{{c.textOp}};text-shadow:{{c.shadow}}">{{c.pct}}<small style="font-size:12px;opacity:0.8;margin-left:1px">%</small></span>
+<sc-if value="{{c.hasSettings}}" hint-placeholder-val="{{ false }}">
+<button onClick="{{c.menuToggle}}" aria-label="Настройки карточки" style="pointer-events:auto;display:flex;align-items:center;justify-content:center;width:32px;height:32px;margin:-4px -6px 0 4px;border:0;border-radius:16px;background:{{c.setBg}};color:#8c949c;cursor:pointer;font-size:17px;line-height:1;font-family:inherit;transition:background .3s ease;text-shadow:{{c.shadow}}" style-hover="color:#eceff2;background:rgba(28,30,33,0.95)">⋯</button>
+</sc-if>
+</div>
+<sc-if value="{{c.menuOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:44px;right:12px;z-index:5;display:flex;flex-direction:column;min-width:190px;padding:4px;border:1px solid #2a2d31;border-radius:12px;background:rgba(28,30,33,0.97);box-shadow:0 10px 26px rgba(0,0,0,0.5)">
+<div style="display:flex;flex-direction:column;gap:2px;padding:6px 12px 2px">
+<span style="font-size:11px;color:#8c949c">Приглушение фото · {{c.dimVal}}</span>
+<input type="range" min="0" max="100" value="{{c.dimVal}}" onChange="{{c.dimSet}}" style="width:100%;height:20px;accent-color:{{c.color}};cursor:pointer">
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:2px 12px">
+<span style="font-size:11px;color:#8c949c">Акцент текста · {{c.shadowVal}}</span>
+<input type="range" min="0" max="100" value="{{c.shadowVal}}" onChange="{{c.shadowSet}}" style="width:100%;height:20px;accent-color:{{c.color}};cursor:pointer">
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:2px 12px">
+<span style="font-size:11px;color:#8c949c">Тень текста · {{c.shadowStrVal}}</span>
+<input type="range" min="0" max="100" value="{{c.shadowStrVal}}" onChange="{{c.shadowStrSet}}" style="width:100%;height:20px;accent-color:{{c.color}};cursor:pointer">
+</div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:2px 12px 6px">
+<span style="font-size:11px;color:#8c949c">Прозрачность текста · {{c.textOpVal}}</span>
+<input type="range" min="0" max="100" value="{{c.textOpVal}}" onChange="{{c.textOpSet}}" style="width:100%;height:20px;accent-color:{{c.color}};cursor:pointer">
+</div>
+<button onClick="{{c.shareStart}}" style="display:flex;align-items:center;gap:9px;margin-top:2px;padding:9px 12px;border:0;border-top:1px solid #2a2d31;background:none;color:#eceff2;font-family:inherit;font-size:13px;cursor:pointer;text-align:left" style-hover="color:#ffffff">
+<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#8c949c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 V14 M12 3 L8 7 M12 3 L16 7 M5 11 V19 H19 V11"></path></svg>
+Поделиться</button>
+</div>
+</sc-if>
+
+<sc-if value="{{c.hasViews}}" hint-placeholder-val="{{ true }}">
+<div style="position:relative;overflow:hidden;touch-action:pan-y;cursor:grab;background:{{c.viewBg}};transition:background .3s ease" onPointerDown="{{c.pd}}" onPointerMove="{{c.pm}}" onPointerUp="{{c.pu}}" onPointerCancel="{{c.pu}}">
+<div style="display:flex;transform:{{c.tx}};transition:{{c.trackTrans}}">
+
+<div style="flex:0 0 100%;min-width:0;height:132px"></div>
+
+<div style="flex:0 0 100%;min-width:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:8px;padding:10px 16px;height:132px;opacity:{{c.textOp}}">
+<span style="display:flex;align-items:baseline;gap:8px">
+<b style="font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:46px;font-weight:500;line-height:1;color:{{c.ink}};text-shadow:{{c.shadow}}">{{c.val}}</b>
+<span style="color:{{c.ink2}};font-size:14px;text-shadow:{{c.shadow}}">{{c.goalText}}</span>
+</span>
+<span style="position:relative;display:flex;align-items:center;gap:6px">
+<span style="position:absolute;inset:-6px -11px;border-radius:999px;background:{{c.trendHalo}};filter:blur(8px);transition:background .35s ease;pointer-events:none"></span>
+<svg viewBox="0 0 12 12" width="11" height="11" style="position:relative;transform:rotate({{c.trendRot}})"><path d="M6 1 L11 9 H1 Z" fill="{{c.trendColor}}"></path></svg>
+<span style="position:relative;font-size:12.5px;color:{{c.trendColor}};text-shadow:{{c.shadow}};white-space:nowrap">{{c.trendText}}</span>
+</span>
+</div>
+
+<div style="flex:0 0 100%;min-width:0;padding:10px 16px;height:132px;display:flex;flex-direction:column;justify-content:center">
+<svg viewBox="0 0 320 96" style="display:block;width:100%;height:auto">
+<line x1="0" y1="14" x2="320" y2="14" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-dasharray="4 5"></line>
+<polyline points="{{c.dayPoints}}" fill="none" stroke="{{c.color}}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+<text x="80" y="92" font-size="10" fill="#5b6268" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">6</text>
+<text x="160" y="92" font-size="10" fill="#5b6268" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">12</text>
+<text x="240" y="92" font-size="10" fill="#5b6268" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">18</text>
+<text x="314" y="92" font-size="10" fill="#5b6268" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">24</text>
+</svg>
+</div>
+
+<div style="flex:0 0 100%;min-width:0;padding:6px 16px;height:132px;display:flex;flex-direction:column;justify-content:center;gap:6px">
+<span style="display:flex;gap:4px;align-self:flex-end">
+<button onClick="{{c.per7}}" style="min-width:38px;height:26px;padding:0 10px;border:1px solid {{c.seg7Border}};border-radius:13px;background:{{c.seg7Bg}};color:{{c.seg7Color}};font-family:inherit;font-size:11px;cursor:pointer">7д</button>
+<button onClick="{{c.per30}}" style="min-width:38px;height:26px;padding:0 10px;border:1px solid {{c.seg30Border}};border-radius:13px;background:{{c.seg30Bg}};color:{{c.seg30Color}};font-family:inherit;font-size:11px;cursor:pointer">30д</button>
+</span>
+<svg viewBox="0 0 320 64" style="display:block;width:100%;height:auto">
+<sc-for list="{{c.bars}}" as="b">
+<rect x="{{b.x}}" y="{{b.y}}" width="{{b.w}}" height="{{b.h}}" rx="2" fill="{{c.color}}" opacity="{{b.op}}"></rect>
+</sc-for>
+</svg>
+<div style="display:flex;margin-top:2px">
+<sc-for list="{{c.bars}}" as="b">
+<span style="flex:1;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:9px;color:#8c949c;white-space:nowrap">{{b.label}}</span>
+</sc-for>
+</div>
+</div>
+
+</div>
+</div>
+<div style="position:relative;display:flex;justify-content:center;align-items:center;padding:2px 0 0;background:{{c.viewBg}}">
+<sc-for list="{{c.dots}}" as="dot">
+<button onClick="{{dot.go}}" aria-label="Вид карточки" style="border:0;background:none;padding:7px 3px;cursor:pointer"><span style="display:block;width:{{dot.w}};height:4px;border-radius:2px;background:{{dot.bg}};transition:width .2s ease,background .2s ease"></span></button>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="position:relative;padding:6px 16px 16px;margin-top:auto;pointer-events:none;background:{{c.plateBg}}">
+<sc-if value="{{c.flat}}" hint-placeholder-val="{{ false }}">
+<span style="display:flex;align-items:baseline;gap:8px;padding:4px 0 2px">
+<b style="font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:28px;font-weight:500;line-height:1">{{c.val}}</b>
+<span style="color:#8c949c;font-size:14px">{{c.goalText}}</span>
+</span>
+</sc-if>
+<sc-if value="{{c.showMini}}" hint-placeholder-val="{{ false }}">
+<span style="display:block;font-size:13px;color:{{c.ink}};opacity:{{c.textOp}};text-shadow:{{c.shadow}}">{{c.miniText}}</span>
+</sc-if>
+<span style="display:block;height:4px;border-radius:2px;background:rgba(255,255,255,0.12);overflow:hidden;margin-top:10px"><span style="display:block;height:100%;border-radius:2px;width:{{c.barW}};background:{{c.barColor}}"></span></span>
+<sc-if value="{{c.showFoot}}" hint-placeholder-val="{{ true }}">
+<span style="display:block;margin-top:8px;color:{{c.ink2}};font-size:12px;opacity:{{c.textOp}};text-shadow:{{c.shadow}}">{{c.foot}}</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{shareOn}}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;background:rgba(10,10,11,0.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">
+<div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:440px;padding:10px 8px 0 16px">
+<span style="font-size:15px;color:#eceff2">Поделиться</span>
+<button onClick="{{shClose}}" aria-label="Закрыть" style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;background:none;color:#8c949c;cursor:pointer" style-hover="color:#eceff2"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6 L18 18 M18 6 L6 18"></path></svg></button>
+</div>
+<div style="display:flex;gap:4px;padding:8px 0 4px">
+<button onClick="{{shSetCard}}" style="min-width:88px;height:30px;padding:0 14px;border:1px solid {{shSegCardBorder}};border-radius:15px;background:{{shSegCardBg}};color:{{shSegCardColor}};font-family:inherit;font-size:12px;cursor:pointer">Карточка</button>
+<button onClick="{{shSetFrame}}" style="min-width:88px;height:30px;padding:0 14px;border:1px solid {{shSegFrameBorder}};border-radius:15px;background:{{shSegFrameBg}};color:{{shSegFrameColor}};font-family:inherit;font-size:12px;cursor:pointer">Кадр 9:16</button>
+</div>
+<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;width:100%;padding:8px 16px">
+<sc-if value="{{shIsFrame}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+<div style="position:relative;height:min(56vh,500px);aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#0d0e10;border:1px solid #2a2d31;box-shadow:0 18px 48px rgba(0,0,0,0.55)">
+<sc-if value="{{shHasPhoto}}" hint-placeholder-val="{{ false }}"><img src="{{shPhoto}}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></sc-if>
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,11,0.4) 0%,rgba(10,10,11,0.12) 38%,rgba(10,10,11,0.62) 100%)"></div>
+<div style="position:absolute;left:0;right:0;top:9%;display:flex;justify-content:center">
+
+</div>
+<div style="position:absolute;left:4%;top:{{shFrameBlockTop}};display:flex;flex-direction:column;align-items:flex-start;gap:2%;transition:top .3s ease">
+<span style="display:flex;align-items:baseline;gap:7px;text-shadow:0 1px 3px rgba(0,0,0,0.7),0 2px 14px rgba(0,0,0,0.5)"><b style="font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:min(6vh,44px);font-weight:500;line-height:1;color:#ffffff">{{shVal}}</b><span style="color:rgba(255,255,255,0.85);font-size:min(2vh,14px)">{{shGoal}}</span></span>
+<sc-if value="{{shCv1}}" hint-placeholder-val="{{ false }}">
+<span style="position:relative;display:flex;align-items:center;gap:6px">
+<span style="position:absolute;inset:-6px -11px;border-radius:999px;background:rgba(10,10,11,0.42);filter:blur(8px);pointer-events:none"></span>
+<svg viewBox="0 0 12 12" width="11" height="11" style="position:relative;transform:rotate({{shTrendRot}})"><path d="M6 1 L11 9 H1 Z" fill="{{shTrendColor}}"></path></svg>
+<span style="position:relative;font-size:min(1.8vh,12.5px);color:{{shTrendColor}};text-shadow:0 1px 3px rgba(0,0,0,0.7);white-space:nowrap">{{shTrendText}}</span>
+</span>
+</sc-if>
+<span style="color:rgba(255,255,255,0.72);font-size:min(1.8vh,13px);text-shadow:0 1px 3px rgba(0,0,0,0.7)">{{dateStr}}</span>
+</div>
+<sc-if value="{{shCv2}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:4%;right:4%;top:76%">
+<svg viewBox="0 0 320 96" style="display:block;width:100%;height:auto;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7))">
+<line x1="0" y1="14" x2="320" y2="14" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4 5"></line>
+<polyline points="{{shDayPoints}}" fill="none" stroke="{{shColor}}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+<text x="80" y="92" font-size="10" fill="rgba(255,255,255,0.7)" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">6</text>
+<text x="160" y="92" font-size="10" fill="rgba(255,255,255,0.7)" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">12</text>
+<text x="240" y="92" font-size="10" fill="rgba(255,255,255,0.7)" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">18</text>
+<text x="314" y="92" font-size="10" fill="rgba(255,255,255,0.7)" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">24</text>
+</svg>
+</div>
+</sc-if>
+<sc-if value="{{shCv3}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:4%;right:4%;top:76%">
+<svg viewBox="0 0 320 64" style="display:block;width:100%;height:auto;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7))">
+<sc-for list="{{shBars}}" as="b">
+<rect x="{{b.x}}" y="{{b.y}}" width="{{b.w}}" height="{{b.h}}" rx="2" fill="{{shColor}}" opacity="{{b.op}}"></rect>
+</sc-for>
+</svg>
+<div style="display:flex;margin-top:3px">
+<sc-for list="{{shBars}}" as="b">
+<span style="flex:1;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:min(1.3vh,9px);color:rgba(255,255,255,0.7);text-shadow:0 1px 3px rgba(0,0,0,0.7);white-space:nowrap">{{b.label}}</span>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<span style="position:absolute;left:0;right:0;bottom:4.5%;text-align:center;font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:min(1.7vh,12px);letter-spacing:0.14em;color:rgba(255,255,255,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.7)">STANU · beta version</span>
+</div>
+<div style="display:flex;justify-content:center;align-items:center">
+<sc-for list="{{shDots}}" as="dot">
+<button onClick="{{dot.go}}" aria-label="Вид для отправки" style="border:0;background:none;padding:7px 3px;cursor:pointer"><span style="display:block;width:{{dot.w}};height:4px;border-radius:2px;background:{{dot.bg}};transition:width .2s ease,background .2s ease"></span></button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{shIsCard}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+<div style="position:relative;display:flex;flex-direction:column;width:min(80vw,340px);border-radius:22px;overflow:hidden;background:#141517;border:1px solid #2a2d31;box-shadow:0 18px 48px rgba(0,0,0,0.55)">
+<sc-if value="{{shHasPhoto}}" hint-placeholder-val="{{ false }}"><img src="{{shPhoto}}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></sc-if>
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,11,0.34) 0%,rgba(10,10,11,0.08) 32%,rgba(10,10,11,0.55) 100%)"></div>
+<div style="position:relative;display:flex;align-items:center;gap:8px;padding:14px 16px 6px">
+<svg viewBox="0 0 100 100" width="18" height="18"><path d="{{shIcon}}" fill="{{shColor}}" opacity="0.9"></path></svg>
+<span style="flex:1;font-size:14px;color:#ffffff;text-shadow:0 1px 3px rgba(0,0,0,0.7)">{{shTitle}}</span>
+<span style="font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:20px;color:rgba(255,255,255,0.9);text-shadow:0 1px 3px rgba(0,0,0,0.7)">{{shPct}}<small style="font-size:12px;opacity:0.8;margin-left:1px">%</small></span>
+</div>
+<div style="position:relative;height:132px;display:flex;flex-direction:column;justify-content:center;padding:10px 16px">
+<sc-if value="{{shCv1}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px">
+<span style="display:flex;align-items:baseline;gap:8px;text-shadow:0 1px 3px rgba(0,0,0,0.7)"><b style="font-family:'Avenir Next',Futura,'Century Gothic','Trebuchet MS',sans-serif;font-size:46px;font-weight:500;line-height:1;color:#ffffff">{{shVal}}</b><span style="color:rgba(255,255,255,0.85);font-size:14px">{{shGoal}}</span></span>
+<span style="position:relative;display:flex;align-items:center;gap:6px"><span style="position:absolute;inset:-6px -11px;border-radius:999px;background:rgba(10,10,11,0.42);filter:blur(8px);pointer-events:none"></span><svg viewBox="0 0 12 12" width="11" height="11" style="position:relative;transform:rotate({{shTrendRot}})"><path d="M6 1 L11 9 H1 Z" fill="{{shTrendColor}}"></path></svg><span style="position:relative;font-size:12.5px;color:{{shTrendColor}};text-shadow:0 1px 3px rgba(0,0,0,0.7);white-space:nowrap">{{shTrendText}}</span></span>
+</div>
+</sc-if>
+<sc-if value="{{shCv2}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 320 96" style="display:block;width:100%;height:auto">
+<line x1="0" y1="14" x2="320" y2="14" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-dasharray="4 5"></line>
+<polyline points="{{shDayPoints}}" fill="none" stroke="{{shColor}}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+<text x="80" y="92" font-size="10" fill="#8c949c" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">6</text>
+<text x="160" y="92" font-size="10" fill="#8c949c" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">12</text>
+<text x="240" y="92" font-size="10" fill="#8c949c" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">18</text>
+<text x="314" y="92" font-size="10" fill="#8c949c" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">24</text>
+</svg>
+</sc-if>
+<sc-if value="{{shCv3}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 320 64" style="display:block;width:100%;height:auto">
+<sc-for list="{{shBars}}" as="b">
+<rect x="{{b.x}}" y="{{b.y}}" width="{{b.w}}" height="{{b.h}}" rx="2" fill="{{shColor}}" opacity="{{b.op}}"></rect>
+</sc-for>
+</svg>
+<div style="display:flex;margin-top:4px">
+<sc-for list="{{shBars}}" as="b">
+<span style="flex:1;text-align:center;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:9px;color:#8c949c;white-space:nowrap">{{b.label}}</span>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<div style="position:relative;padding:0 16px 16px">
+<span style="display:block;font-size:13px;color:#ffffff;text-shadow:0 1px 3px rgba(0,0,0,0.7)">{{shBottomText}}</span>
+<span style="display:block;height:4px;border-radius:2px;background:rgba(255,255,255,0.18);overflow:hidden;margin-top:10px"><span style="display:block;height:100%;border-radius:2px;width:{{shBarW}};background:{{shColor}}"></span></span>
+</div>
+</div>
+<div style="display:flex;justify-content:center;align-items:center">
+<sc-for list="{{shDots}}" as="dot">
+<button onClick="{{dot.go}}" aria-label="Вид для отправки" style="border:0;background:none;padding:7px 3px;cursor:pointer"><span style="display:block;width:{{dot.w}};height:4px;border-radius:2px;background:{{dot.bg}};transition:width .2s ease,background .2s ease"></span></button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+<button onClick="{{shSend}}" style="width:min(80vw,340px);height:48px;margin:4px 0 26px;border:0;border-radius:24px;background:{{shColor}};color:#0a0a0b;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer">Отправить</button>
+<sc-if value="{{shSheetOn}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{shSheetClose}}" style="position:absolute;inset:0;background:rgba(0,0,0,0.4)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center">
+<div style="width:100%;max-width:440px;border-radius:18px 18px 0 0;background:rgba(28,30,33,0.98);border:1px solid #2a2d31;border-bottom:0;padding:10px 18px calc(18px + env(safe-area-inset-bottom))">
+<span style="display:block;width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.25);margin:0 auto 16px"></span>
+<div style="display:flex;justify-content:space-around">
+<span style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px"><span style="display:flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:25px;background:#303c4a"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#eceff2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 V15 M12 15 L8 11 M12 15 L16 11 M5 19 H19"></path></svg></span><span style="font-size:11px;color:#8c949c">Сохранить</span></span>
+<span style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px"><span style="display:flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:25px;background:#2b90c8"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"><path d="M21 4 L3 11 L10 13 L12 20 L15 15 L21 4 Z"></path></svg></span><span style="font-size:11px;color:#8c949c">Telegram</span></span>
+<span style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px"><span style="display:flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:25px;background:#28a35c"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="11.5" r="7.5"></circle><path d="M7 18.5 L5.5 21"></path></svg></span><span style="font-size:11px;color:#8c949c">WhatsApp</span></span>
+<span style="display:flex;flex-direction:column;align-items:center;gap:7px;width:64px"><span style="display:flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:25px;background:#303c4a"><svg viewBox="0 0 24 24" width="20" height="20" fill="#eceff2"><circle cx="6" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="18" cy="12" r="1.7"></circle></svg></span><span style="font-size:11px;color:#8c949c">Ещё</span></span>
+</div>
+<button onClick="{{shSheetClose}}" style="width:100%;height:44px;margin-top:16px;border:0;border-radius:12px;background:#1c1e21;color:#eceff2;font-family:inherit;font-size:14px;cursor:pointer">Отмена</button>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<div style="margin-top:auto;border-top:1px solid rgba(255,255,255,0.055);padding-bottom:env(safe-area-inset-bottom)">
+<div style="display:flex;justify-content:space-around;align-items:center">
+<button aria-label="Главная" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#eceff2" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11 V20 H14 V15 H10 V20 H4 Z"></path></svg></button>
+<button aria-label="Сегодня" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#8c949c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 H14 M4 11 H12 M4 16 H10"></path><path d="M14 15 L16.5 17.5 L21 13"></path></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+<button aria-label="Раздел" style="display:flex;align-items:center;justify-content:center;width:44px;height:52px;border:0;background:none;cursor:pointer;opacity:0.55"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8c949c" stroke-width="1.8"><rect x="4.5" y="4.5" width="15" height="15" rx="4"></rect></svg></button>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  ICONS = {
+    water: 'M50 8 C50 8 78 42 78 60 A28 28 0 1 1 22 60 C22 42 50 8 50 8 Z',
+    push: 'M6 40 H16 V60 H6 Z M20 32 H32 V68 H20 Z M68 32 H80 V68 H68 Z M84 40 H94 V60 H84 Z M36 45 H64 V55 H36 Z',
+    read: 'M12 24 H44 V76 H12 Z M56 24 H88 V76 H56 Z M46 26 H54 V78 H46 Z',
+    coffee: 'M18 30 H70 V48 A26 26 0 0 1 18 48 Z M72 34 H78 A12 12 0 0 1 78 58 H70 V50 H77 A5 5 0 0 0 77 42 H72 Z',
+    mood: 'M50 84 C20 60 12 42 22 30 C30 21 44 24 50 34 C56 24 70 21 78 30 C88 42 80 60 50 84 Z'
+  };
+  RINGS = [
+    { id: 'water', label: 'Вода', color: '#58b6ee', level: 'soft', quick: 0.1 },
+    { id: 'push', label: 'Отжимания', color: '#3ce07e', level: 'done', quick: 0.2 },
+    { id: 'read', label: 'Чтение', color: '#a78bfa', level: 'hard', quick: 0.1 },
+    { id: 'coffee', label: 'Кофе', color: '#e0a32e', level: 'done', quick: 0.34 },
+    { id: 'mood', label: 'Настроение', color: '#f472b6', level: 'done', quick: 1 },
+    { id: 'food', label: 'Питание', glyph: 'П', off: true },
+    { id: 'sport', label: 'Спорт', glyph: 'С', off: true }
+  ];
+  WEEK7 = { water: [0.72, 1, 0.84, 1, 0.56, 1, 0.2], read: [1, 0.66, 1, 0, 0.83, 1, 0.4] };
+  DAYL = ['п', 'в', 'с', 'ч', 'п', 'с', 'в'];
+  DAYCUM = {
+    water: [0, 0, 0, 0, 0, 0, 0.02, 0.06, 0.1, 0.1, 0.13, 0.16, 0.16, 0.18, 0.2, 0.2],
+    read: [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]
+  };
+  state = {
+    view: { water: 0, read: 0 }, period: { water: '7', read: '7' }, drag: null,
+    fills: { water: 0.2, push: 0.4, read: 0.4, coffee: 0.66, mood: 0 },
+    ringPct: null, bgOn: { water: true, read: true }, cardMenu: null,
+    dim: { water: 0, read: 0 }, shadowLvl: { water: 70, read: 70 }, textOp: { water: 100, read: 100 }, shadowStr: { water: 70, read: 70 },
+    share: null, shareMode: 'frame', shareSheet: false, shareView: 0
+  };
+  shareVals() {
+    const s = this.state;
+    const map = {
+      water: { title: 'Водный баланс', color: '#58b6ee', icon: this.ICONS.water, val: '500', goal: 'из 2500 мл', pct: '20', fill: 0.2, photo: 'assets/water-bg.jpg', hasPhoto: true, seed: 77, trendText: '-8% к среднему за 7 дней', trendColor: '#8c949c', trendRot: '180deg', foot: 'последняя запись 2 ч назад' },
+      read: { title: 'Чтение', color: '#a78bfa', icon: this.ICONS.read, val: '12', goal: 'из 30 минут', pct: '40', fill: 0.4, photo: '', hasPhoto: false, seed: 191, trendText: '+15% к среднему за 7 дней', trendColor: '#3ce07e', trendRot: '0deg', foot: 'последняя запись вчера' }
+    };
+    const d = s.share ? map[s.share] : null;
+    const seg = on => ({ bg: on ? '#1c1e21' : 'rgba(28,30,33,0.5)', border: on ? '#e6eaee' : '#2a2d31', color: on ? '#eceff2' : '#8c949c' });
+    const sc = seg(s.shareMode === 'card'), sf = seg(s.shareMode === 'frame');
+    return {
+      shareOn: !!d,
+      shTitle: d ? d.title : '', shColor: d ? d.color : '#58b6ee', shIcon: d ? d.icon : '',
+      shVal: d ? d.val : '', shGoal: d ? d.goal : '', shPct: d ? d.pct : '',
+      shPhoto: d ? d.photo : '', shHasPhoto: d ? d.hasPhoto : false,
+      shDash: d ? (d.fill * 289).toFixed(0) : '0', shBarW: d ? (d.fill * 100) + '%' : '0%',
+      shIsFrame: s.shareMode === 'frame', shIsCard: s.shareMode === 'card',
+      shCv1: s.shareView === 1, shCv2: s.shareView === 2, shCv3: s.shareView === 3,
+      shFrameBlockTop: (s.shareView === 2 || s.shareView === 3) ? '58%' : '66%',
+      shTrendText: d ? d.trendText : '', shTrendColor: d ? d.trendColor : '', shTrendRot: d ? d.trendRot : '0deg',
+      shDayPoints: d ? this.points(s.share) : '',
+      shBars: d ? this.bars(s.share, '7', d.seed) : [],
+      shBottomText: d ? (s.shareView === 0 ? d.val + ' ' + d.goal : d.foot) : '',
+      shDots: [0, 1, 2, 3].map(i => ({
+        bg: i === s.shareView ? '#eceff2' : 'rgba(255,255,255,0.4)',
+        w: i === s.shareView ? '18px' : '8px',
+        go: () => this.setState({ shareView: i })
+      })),
+      shSegCardBg: sc.bg, shSegCardBorder: sc.border, shSegCardColor: sc.color,
+      shSegFrameBg: sf.bg, shSegFrameBorder: sf.border, shSegFrameColor: sf.color,
+      shSetCard: () => this.setState({ shareMode: 'card' }),
+      shSetFrame: () => this.setState({ shareMode: 'frame' }),
+      shClose: () => this.setState({ share: null, shareSheet: false }),
+      shSend: () => this.setState({ shareSheet: true }),
+      shSheetOn: s.shareSheet,
+      shSheetClose: () => this.setState({ shareSheet: false })
+    };
+  }
+  setTextOp(id) { return e => this.setState(s => ({ textOp: { ...s.textOp, [id]: +e.target.value } })); }
+  setShadowStr(id) { return e => this.setState(s => ({ shadowStr: { ...s.shadowStr, [id]: +e.target.value } })); }
+  setDim(id) { return e => this.setState(s => ({ dim: { ...s.dim, [id]: +e.target.value } })); }
+  setShadow(id) { return e => this.setState(s => ({ shadowLvl: { ...s.shadowLvl, [id]: +e.target.value } })); }
+  trendColorCss(id, dark, base, light) {
+    const k = this.state.shadowLvl[id] / 100;
+    const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+    const c = k <= 0.7 ? mix(dark, base, k / 0.7) : mix(base, light, (k - 0.7) / 0.3);
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  trendHaloCss(id) {
+    const k = this.state.shadowStr[id] / 100;
+    if (k <= 0.02) return 'transparent';
+    return `rgba(10,10,11,${(0.6 * k).toFixed(2)})`;
+  }
+  shadowCss(id) {
+    const k = this.state.shadowStr[id] / 100;
+    if (k <= 0.02) return 'none';
+    return `0 1px ${(2 + 2 * k).toFixed(1)}px rgba(0,0,0,${(0.95 * k).toFixed(2)}), 0 2px ${(6 + 14 * k).toFixed(1)}px rgba(0,0,0,${(0.7 * k).toFixed(2)})`;
+  }
+  inkCss(id) {
+    const k = this.state.shadowLvl[id] / 100;
+    const m = (a, b) => Math.round(a + (b - a) * k);
+    return `rgb(${m(38, 255)},${m(41, 255)},${m(45, 255)})`;
+  }
+  ink2Css(id) {
+    const k = this.state.shadowLvl[id] / 100;
+    const m = (a, b) => Math.round(a + (b - a) * k);
+    return `rgb(${m(28, 217)},${m(30, 221)},${m(33, 225)})`;
+  }
+  tapRing(r) {
+    if (r.off) return;
+    clearTimeout(this._pctTm);
+    this.setState(s => ({
+      fills: { ...s.fills, [r.id]: Math.min(1, s.fills[r.id] + r.quick) },
+      ringPct: r.id
+    }));
+    this._pctTm = setTimeout(() => this.setState({ ringPct: null }), 1600);
+  }
+  componentWillUnmount() { clearTimeout(this._pctTm); }
+  month30(seed) {
+    const a = [];
+    let x = seed;
+    for (let i = 0; i < 30; i++) { x = (x * 48271) % 2147483647; a.push(0.25 + (x % 1000) / 1350); }
+    return a.map(v => Math.min(1, v));
+  }
+  bars(themeId, period, seed) {
+    const vals = period === '7' ? this.WEEK7[themeId] : this.month30(seed);
+    const n = vals.length;
+    const w = period === '7' ? 26 : 7;
+    const step = (320 - 12) / n;
+    return vals.map((v, i) => {
+      const h = Math.max(2, v * 58);
+      return {
+        x: (6 + i * step + (step - w) / 2).toFixed(1), w,
+        y: (62 - h).toFixed(1), h: h.toFixed(1),
+        op: i === n - 1 ? 1 : 0.45,
+        lx: (6 + i * step + step / 2).toFixed(1),
+        label: period === '7' ? this.DAYL[i] : (i === 0 ? '30д' : i === 29 ? '1д' : '')
+      };
+    });
+  }
+  points(themeId) {
+    const a = this.DAYCUM[themeId];
+    return a.map((f, i) => `${(i * 320 / (a.length - 1)).toFixed(0)},${(84 - f * 70).toFixed(1)}`).join(' ');
+  }
+  pd(id) {
+    return e => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      this.setState({ drag: { id, startX: e.clientX, dx: 0 } });
+    };
+  }
+  pm(id) {
+    return e => {
+      const d = this.state.drag;
+      if (d && d.id === id) this.setState({ drag: { ...d, dx: e.clientX - d.startX } });
+    };
+  }
+  pu(id) {
+    return () => {
+      const d = this.state.drag;
+      if (!d || d.id !== id) return;
+      let v = this.state.view[id];
+      if (Math.abs(d.dx) > 48) v = Math.max(0, Math.min(3, v + (d.dx < 0 ? 1 : -1)));
+      this.setState(s => ({ drag: null, view: { ...s.view, [id]: v } }));
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const rings = this.RINGS.map(r => {
+      if (r.off) return {
+        label: r.label, isGlyph: true, hasIcon: false, glyph: r.glyph,
+        ringStroke: '#22262b', glowColor: 'none', glowOp: 0, labelColor: '#5b6268',
+        iconD: '', clip: '', surfaceY: 100, color: '',
+        tap: null, cursor: 'default', hint: 'тема ещё не подключена', showPct: false, pctText: ''
+      };
+      const soft = r.level === 'soft', hard = r.level === 'hard';
+      const fill = s.fills[r.id];
+      return {
+        label: r.label, isGlyph: false, hasIcon: true, glyph: '',
+        ringStroke: soft ? 'url(#g-soft)' : hard ? 'url(#g-hard)' : '#303c4a',
+        glowColor: soft ? '#2ecb7f' : hard ? '#e0402e' : 'none',
+        glowOp: soft || hard ? 0.5 : 0,
+        labelColor: '#8c949c',
+        iconD: this.ICONS[r.id], clip: `url(#clip-${r.id})`,
+        surfaceY: (92 - fill * 84).toFixed(1), color: r.color,
+        tap: () => this.tapRing(r), cursor: 'pointer',
+        hint: 'Тап - быстрое значение. Удержание - второе значение, длинное удержание - экран темы',
+        showPct: s.ringPct === r.id, pctText: Math.round(fill * 100) + '%'
+      };
+    });
+    const mkViews = (id, cfg) => {
+      const v = s.view[id];
+      const d = s.drag && s.drag.id === id ? s.drag : null;
+      const per = s.period[id];
+      const segOn = p => per === p;
+      return {
+        hasViews: true, flat: false,
+        tx: d ? `translateX(calc(${-v * 100}% + ${d.dx}px))` : `translateX(${-v * 100}%)`,
+        trackTrans: d ? 'none' : 'transform .3s ease',
+        pd: this.pd(id), pm: this.pm(id), pu: this.pu(id),
+        dots: [0, 1, 2, 3].map(i => ({
+          bg: i === v ? '#eceff2' : 'rgba(255,255,255,0.4)',
+          w: i === v ? '18px' : '8px',
+          go: () => this.setState(st => ({ view: { ...st.view, [id]: i } }))
+        })),
+        dayPoints: this.points(id),
+        bars: this.bars(id, per, cfg.seed),
+        per7: () => this.setState(st => ({ period: { ...st.period, [id]: '7' } })),
+        per30: () => this.setState(st => ({ period: { ...st.period, [id]: '30' } })),
+        seg7Bg: segOn('7') ? '#1c1e21' : 'rgba(28,30,33,0.5)', seg7Border: segOn('7') ? '#e6eaee' : '#2a2d31', seg7Color: segOn('7') ? '#eceff2' : '#8c949c',
+        seg30Bg: segOn('30') ? '#1c1e21' : 'rgba(28,30,33,0.5)', seg30Border: segOn('30') ? '#e6eaee' : '#2a2d31', seg30Color: segOn('30') ? '#eceff2' : '#8c949c'
+      };
+    };
+    const cards = [
+      {
+        title: 'Водный баланс', desc: 'Ежедневная норма выпивания воды',
+        color: '#58b6ee', iconD: this.ICONS.water, hasEmblem: true, hasGlyphEmblem: false, glyph: '',
+        pct: '20', val: '500', goalText: 'из 2500 мл',
+        trendText: '-8% к среднему за 7 дней', trendColor: this.trendColorCss('water', [38, 41, 45], [140, 148, 156], [217, 221, 225]), trendRot: '180deg',
+        foot: 'последняя запись 2 ч назад', barW: '20%', barColor: '#58b6ee',
+        hasPhoto: true, photoSrc: 'assets/water-bg.jpg', hasSlot: false, slotId: '', hasScrim: true,
+        imgOp: (1 - (s.dim.water / 100) * 0.8).toFixed(2),
+        imgFilter: s.dim.water > 0 ? `grayscale(${s.dim.water / 100}) brightness(${(1 - 0.3 * s.dim.water / 100).toFixed(2)})` : 'none',
+        dimVal: s.dim.water, dimSet: this.setDim('water'), shadowVal: s.shadowLvl.water, shadowSet: this.setShadow('water'),
+        slotOp: 1, slotFilter: 'none',
+        scrimBg: s.view.water === 0
+          ? `linear-gradient(180deg,rgba(10,10,11,${(0.5 * s.dim.water / 100).toFixed(2)}) 0%,rgba(10,10,11,${(0.1 * s.dim.water / 100).toFixed(2)}) 30%,rgba(10,10,11,${(0.1 * s.dim.water / 100).toFixed(2)}) 55%,rgba(10,10,11,${(0.7 * s.dim.water / 100).toFixed(2)}) 100%)`
+          : `rgba(10,10,11,${(0.55 * s.dim.water / 100).toFixed(2)})`,
+        viewBg: 'transparent', plateBg: 'transparent',
+        showDesc: s.view.water !== 0, showMini: s.view.water === 0, showFoot: s.view.water !== 0,
+        miniText: '500 из 2500 мл',
+        setBg: s.view.water === 0 ? 'transparent' : 'rgba(28,30,33,0.65)',
+        shadow: this.shadowCss('water'), ink: this.inkCss('water'), ink2: this.ink2Css('water'), trendHalo: this.trendHaloCss('water'),
+        textOp: s.textOp.water / 100, textOpVal: s.textOp.water, textOpSet: this.setTextOp('water'),
+        shadowStrVal: s.shadowStr.water, shadowStrSet: this.setShadowStr('water'), minH: '300px',
+        hasSettings: true, menuOpen: s.cardMenu === 'water',
+        shareStart: () => this.setState(st => ({ share: 'water', cardMenu: null, shareMode: 'frame', shareSheet: false, shareView: st.view.water })),
+        menuToggle: () => this.setState(st => ({ cardMenu: st.cardMenu === 'water' ? null : 'water' })),
+        bgToggle: () => this.setState(st => ({ dim: { ...st.dim, water: st.dim.water > 50 ? 0 : 100 }, bgOn: { ...st.bgOn, water: st.dim.water > 50 } })),
+        bgToggleLabel: s.dim.water > 50 ? 'Вернуть яркость фото' : 'Приглушить полностью',
+        ...mkViews('water', { seed: 77 })
+      },
+      {
+        title: 'Чтение', desc: 'Полчаса каждый вечер',
+        color: '#a78bfa', iconD: this.ICONS.read, hasEmblem: true, hasGlyphEmblem: false, glyph: '',
+        pct: '40', val: '12', goalText: 'из 30 минут',
+        trendText: '+15% к среднему за 7 дней', trendColor: this.trendColorCss('read', [20, 90, 52], [60, 224, 126], [150, 242, 186]), trendRot: '0deg',
+        foot: 'последняя запись вчера', barW: '40%', barColor: '#a78bfa',
+        hasPhoto: false, photoSrc: '', hasSlot: true, slotId: 'read-card-bg', hasScrim: true,
+        imgOp: 0, imgFilter: 'none',
+        slotOp: (1 - (s.dim.read / 100) * 0.8).toFixed(2),
+        slotFilter: s.dim.read > 0 ? `grayscale(${s.dim.read / 100}) brightness(${(1 - 0.3 * s.dim.read / 100).toFixed(2)})` : 'none',
+        dimVal: s.dim.read, dimSet: this.setDim('read'), shadowVal: s.shadowLvl.read, shadowSet: this.setShadow('read'),
+        scrimBg: s.view.read === 0
+          ? `linear-gradient(180deg,rgba(10,10,11,${(0.5 * s.dim.read / 100).toFixed(2)}) 0%,rgba(10,10,11,${(0.1 * s.dim.read / 100).toFixed(2)}) 30%,rgba(10,10,11,${(0.1 * s.dim.read / 100).toFixed(2)}) 55%,rgba(10,10,11,${(0.7 * s.dim.read / 100).toFixed(2)}) 100%)`
+          : `rgba(10,10,11,${(0.6 * s.dim.read / 100).toFixed(2)})`,
+        showDesc: s.view.read !== 0, showMini: s.view.read === 0, showFoot: s.view.read !== 0,
+        miniText: '12 из 30 минут',
+        setBg: s.view.read === 0 ? 'transparent' : 'rgba(28,30,33,0.65)',
+        viewBg: 'transparent', plateBg: 'transparent',
+        shadow: this.shadowCss('read'), ink: this.inkCss('read'), ink2: this.ink2Css('read'), trendHalo: this.trendHaloCss('read'),
+        textOp: s.textOp.read / 100, textOpVal: s.textOp.read, textOpSet: this.setTextOp('read'),
+        shadowStrVal: s.shadowStr.read, shadowStrSet: this.setShadowStr('read'), minH: '300px',
+        hasSettings: true, menuOpen: s.cardMenu === 'read',
+        shareStart: () => this.setState(st => ({ share: 'read', cardMenu: null, shareMode: 'frame', shareSheet: false, shareView: st.view.read })),
+        menuToggle: () => this.setState(st => ({ cardMenu: st.cardMenu === 'read' ? null : 'read' })),
+        bgToggle: () => this.setState(st => ({ dim: { ...st.dim, read: st.dim.read > 50 ? 0 : 100 }, bgOn: { ...st.bgOn, read: st.dim.read > 50 } })),
+        bgToggleLabel: s.dim.read > 50 ? 'Вернуть яркость фото' : 'Приглушить полностью',
+        ...mkViews('read', { seed: 191 })
+      },
+      {
+        title: 'Питание', desc: 'Ежедневная норма калорий',
+        color: '', iconD: '', hasEmblem: false, hasGlyphEmblem: true, glyph: 'П',
+        pct: '0', val: '0', goalText: 'из 2100 ккал',
+        foot: 'тема ещё не подключена', barW: '0%', barColor: '#303c4a',
+        hasViews: false, flat: true, hasPhoto: false, photoSrc: '', hasSlot: false, slotId: '', hasScrim: false, viewBg: 'transparent', plateBg: 'transparent',
+        imgOp: 0, imgFilter: 'none', scrimBg: 'none', showDesc: true, showMini: false, showFoot: true, miniText: '', setBg: 'transparent',
+        slotOp: 1, slotFilter: 'none', dimVal: 0, dimSet: null, shadowVal: 0, shadowSet: null, ink: '#eceff2', ink2: '#8c949c', textOp: 1, textOpVal: 100, textOpSet: null, shadowStrVal: 0, shadowStrSet: null,
+        hasSettings: false, menuOpen: false, menuToggle: null, bgToggle: null, bgToggleLabel: '',
+        shadow: 'none', minH: '0px',
+        tx: 'none', trackTrans: 'none', pd: null, pm: null, pu: null, dots: [], dayPoints: '', bars: [],
+        per7: null, per30: null, seg7Bg: '', seg7Border: '', seg7Color: '', seg30Bg: '', seg30Border: '', seg30Color: '',
+        trendText: '', trendColor: '', trendRot: '0deg', trendHalo: 'transparent'
+      },
+      {
+        title: 'Спорт', desc: 'Тренировки на этой неделе',
+        color: '', iconD: '', hasEmblem: false, hasGlyphEmblem: true, glyph: 'С',
+        pct: '0', val: '0', goalText: 'из 4 тренировок',
+        foot: 'тема ещё не подключена', barW: '0%', barColor: '#303c4a',
+        hasViews: false, flat: true, hasPhoto: false, photoSrc: '', hasSlot: false, slotId: '', hasScrim: false, viewBg: 'transparent', plateBg: 'transparent',
+        imgOp: 0, imgFilter: 'none', scrimBg: 'none', showDesc: true, showMini: false, showFoot: true, miniText: '', setBg: 'transparent',
+        slotOp: 1, slotFilter: 'none', dimVal: 0, dimSet: null, shadowVal: 0, shadowSet: null, ink: '#eceff2', ink2: '#8c949c', textOp: 1, textOpVal: 100, textOpSet: null, shadowStrVal: 0, shadowStrSet: null,
+        hasSettings: false, menuOpen: false, menuToggle: null, bgToggle: null, bgToggleLabel: '',
+        shadow: 'none', minH: '0px',
+        tx: 'none', trackTrans: 'none', pd: null, pm: null, pu: null, dots: [], dayPoints: '', bars: [],
+        per7: null, per30: null, seg7Bg: '', seg7Border: '', seg7Color: '', seg30Bg: '', seg30Border: '', seg30Color: '',
+        trendText: '', trendColor: '', trendRot: '0deg', trendHalo: 'transparent'
+      }
+    ];
+    const d = new Date();
+    return {
+      dateStr: d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' + d.toLocaleDateString('ru-RU', { weekday: 'long' }),
+      rings, cards, ...this.shareVals()
+    };
+  }
+}
+</script>
+</body>
+</html>
