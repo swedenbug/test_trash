@@ -1,0 +1,230 @@
+/*
+  looks.css — оформление пяти концепций. Только для витрины выбора.
+  После выбора остаётся одна, остальные удаляются.
+*/
+
+.look { margin-bottom: var(--s-6); }
+.look__name { margin: 0 0 var(--s-2); font-size: var(--t-lg); }
+.look__idea { margin: 0 0 var(--s-2); color: var(--c-muted); font-size: var(--t-sm); line-height: 1.45; }
+.look__pm { margin: 0 0 var(--s-3); color: var(--c-faint); font-size: var(--t-xs); line-height: 1.5; }
+.look__pm b { color: var(--c-muted); font-weight: 500; }
+
+.look__frame {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-bg);
+  overflow: hidden;
+}
+
+.v { padding: var(--s-4); }
+
+.thead { display: flex; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-4); }
+.thead h4 { margin: 0; font-size: var(--t-base); }
+
+.tcredit {
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid rgba(224,163,46,.4);
+  border-radius: 999px;
+  background: rgba(224,163,46,.12);
+  color: var(--c-signal);
+  font-family: var(--f-geo);
+  font-size: var(--t-xs);
+}
+
+/* ---------- А. Журнал ---------- */
+
+.v-journal { font-family: var(--f-geo); }
+
+.jhead {
+  display: flex; align-items: flex-end; gap: var(--s-3);
+  padding-bottom: var(--s-3); margin-bottom: var(--s-4);
+  border-bottom: 2px solid var(--c-line);
+}
+
+.jhead__l { display: block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--c-faint); }
+.jhead h4 { margin: 2px 0 0; font-size: var(--t-lg); font-weight: 500; }
+.jhead__c { margin-left: auto; font-size: var(--t-xs); color: var(--c-signal); }
+
+.jsec {
+  display: flex; align-items: baseline; gap: var(--s-2);
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--c-faint);
+}
+.jsec span { font-family: var(--f-num); }
+
+.jlist { margin: 0; padding: 0; list-style: none; }
+
+.jr {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--c-hairline);
+}
+.jlist .jr:first-child { border-top: 0; }
+
+.jr__n { font-family: var(--f-num); font-size: var(--t-xs); color: var(--c-faint); padding-top: 2px; }
+.jr__body { flex: 1; min-width: 0; }
+.jr__top { display: flex; align-items: baseline; gap: var(--s-2); }
+.jr__top b { font-size: var(--t-sm); font-weight: 500; }
+.jr__top em { margin-left: auto; font-style: normal; font-size: var(--t-xs); color: var(--c-faint); }
+.jr__val { display: block; margin-top: 2px; font-size: var(--t-xs); color: var(--c-muted); }
+.jr__val u { text-decoration: none; font-size: var(--t-base); }
+
+.jr__line { display: block; height: 2px; margin-top: var(--s-2); background: rgba(255,255,255,.08); }
+.jr__line i { display: block; height: 100%; }
+
+.jr__act {
+  align-self: center; min-height: 30px; padding: 0 var(--s-3);
+  border: 1px solid var(--c-line); border-radius: 4px;
+  background: none; color: var(--c-ink);
+  font-family: var(--f-geo); font-size: var(--t-xs); line-height: 1; cursor: pointer;
+}
+
+.jr--done { opacity: .4; }
+.jgoal { margin-top: var(--s-5); padding-top: var(--s-3); border-top: 2px solid var(--c-line); }
+.jgoal__t { display: block; font-size: var(--t-sm); }
+.jgoal__d { display: block; margin: 2px 0 var(--s-2); font-size: var(--t-xs); color: var(--c-muted); }
+
+/* ---------- Б. Плитки ---------- */
+
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+
+.tile {
+  position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--s-3);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--c) 9%, var(--c-surface));
+}
+
+.tile--wide { grid-column: 1 / -1; }
+.tile__sign { position: absolute; top: var(--s-3); right: var(--s-3); opacity: .8; }
+.tile__num { font-family: var(--f-geo); font-size: var(--t-xl); line-height: 1; }
+.tile__num em { font-style: normal; font-size: var(--t-sm); color: var(--c-muted); }
+.tile__name { font-size: var(--t-xs); color: var(--c-muted); }
+.tile__bar { display: block; height: 3px; margin-top: var(--s-2); border-radius: 2px; background: rgba(255,255,255,.1); }
+.tile__bar i { display: block; height: 100%; border-radius: 2px; background: var(--c); }
+
+.tile__act {
+  margin-top: var(--s-3); align-self: flex-start;
+  min-height: 30px; padding: 0 var(--s-3);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  border-radius: 999px; background: none; color: var(--c);
+  font-family: var(--f-body); font-size: var(--t-xs); line-height: 1; cursor: pointer;
+}
+
+.tgoal {
+  margin-top: var(--s-2); padding: var(--s-3);
+  border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface);
+}
+.tgoal__t { display: block; font-size: var(--t-xs); color: var(--c-muted); }
+.tgoal__big { display: block; font-family: var(--f-geo); font-size: var(--t-xl); line-height: 1.1; }
+.tgoal__big em { font-style: normal; font-size: var(--t-sm); color: var(--c-muted); }
+.tgoal__s { display: block; margin-top: var(--s-2); font-size: var(--t-xs); color: var(--c-muted); }
+
+/* ---------- В. Маршрут ---------- */
+
+.stops { position: relative; margin: 0; padding: 0 0 0 var(--s-2); list-style: none; }
+
+.stops::before {
+  content: ''; position: absolute; left: 24px; top: 22px; bottom: 22px;
+  width: 2px; background: var(--c-line);
+}
+
+.stop { position: relative; display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) 0; }
+.stop__dot { position: relative; z-index: 1; flex: 0 0 auto; display: flex; background: var(--c-bg); border-radius: 50%; }
+.stop__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stop__body b { font-size: var(--t-sm); font-weight: 500; }
+.stop__body span { font-size: var(--t-xs); color: var(--c-muted); }
+.stop.is-passed { opacity: .45; }
+
+.stop__act {
+  flex: 0 0 auto; min-height: 32px; padding: 0 var(--s-3);
+  border: 1px solid var(--c-line); border-radius: 999px;
+  background: var(--c-raised); color: var(--c-ink);
+  font-family: var(--f-body); font-size: var(--t-xs); line-height: 1; cursor: pointer;
+}
+
+.tracknote { margin: var(--s-4) 0 0; font-size: var(--t-xs); color: var(--c-faint); }
+
+/* ---------- Г. Лента ---------- */
+
+.srow { display: flex; gap: var(--s-3); margin: 0; padding: 0 0 var(--s-2); list-style: none; overflow-x: auto; }
+.srow::-webkit-scrollbar { display: none; }
+
+.scard {
+  position: relative; overflow: hidden;
+  flex: 0 0 62%;
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+  border-radius: var(--r-lg);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 22%, var(--c-surface)), var(--c-surface));
+}
+
+.scard__glow {
+  position: absolute; top: -40px; right: -40px; width: 120px; height: 120px;
+  border-radius: 50%; background: var(--c); filter: blur(48px); opacity: .35;
+}
+.scard__sign { position: relative; }
+.scard__name { position: relative; font-size: var(--t-sm); }
+.scard__num { position: relative; font-family: var(--f-geo); font-size: var(--t-2xl); line-height: 1; }
+.scard__num em { font-style: normal; font-size: var(--t-sm); color: var(--c-muted); }
+
+.scard__act {
+  position: relative; align-self: flex-start; margin-top: var(--s-2);
+  min-height: 36px; padding: 0 var(--s-4);
+  border: 0; border-radius: 999px; background: var(--c); color: #0a0a0b;
+  font-family: var(--f-body); font-size: var(--t-sm); font-weight: 500; line-height: 1; cursor: pointer;
+}
+
+.srow__hint { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-xs); color: var(--c-faint); }
+.smini { margin: 0; padding: 0; list-style: none; }
+.smini li { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) 0; font-size: var(--t-sm); opacity: .5; border-top: 1px solid var(--c-hairline); }
+.smini em { margin-left: auto; font-style: normal; font-size: var(--t-xs); color: var(--c-muted); }
+
+/* ---------- Д. Табло ---------- */
+
+.v-score { font-family: var(--f-num); }
+
+.sboard {
+  display: flex; align-items: baseline; gap: var(--s-3);
+  padding: var(--s-4); margin-bottom: var(--s-3);
+  border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.sboard__l { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--c-faint); }
+.sboard__big { font-family: var(--f-geo); font-size: 40px; line-height: 1; }
+.sboard__big em { font-style: normal; font-size: var(--t-lg); color: var(--c-muted); }
+.sboard__c { margin-left: auto; font-size: var(--t-xs); color: var(--c-signal); }
+
+.slist { margin: 0; padding: 0; list-style: none; }
+
+.srow2 {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'name score act' 'bar bar bar';
+  align-items: center; gap: var(--s-2) var(--s-3);
+  padding: var(--s-3) 0; border-top: 1px solid var(--c-hairline);
+}
+.slist .srow2:first-child { border-top: 0; }
+
+.srow2__name { grid-area: name; font-family: var(--f-body); font-size: var(--t-sm); }
+.srow2__score { grid-area: score; font-family: var(--f-geo); font-size: var(--t-lg); color: var(--c); line-height: 1; }
+.srow2__score em { font-style: normal; font-size: var(--t-sm); color: var(--c-muted); }
+.srow2__bar { grid-area: bar; height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); }
+.srow2__bar i { display: block; height: 100%; border-radius: 2px; background: var(--c); }
+
+.srow2__act {
+  grid-area: act; min-height: 30px; padding: 0 var(--s-3);
+  border: 1px solid var(--c-line); border-radius: 4px;
+  background: none; color: var(--c-ink);
+  font-family: var(--f-body); font-size: var(--t-xs); line-height: 1; cursor: pointer;
+}
+
+.sgoal { margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--c-line); border-radius: var(--r-md); }
+.sgoal__l { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--c-faint); }
+.sgoal__t { display: block; margin: 2px 0; font-family: var(--f-body); font-size: var(--t-sm); }
+.sgoal__n { display: block; font-family: var(--f-geo); font-size: var(--t-lg); margin-bottom: var(--s-2); }
+.sgoal__n em { font-style: normal; font-size: var(--t-sm); color: var(--c-muted); }
