@@ -1,5 +1,5 @@
 /*
-  store.js — единственная точка доступа к данным.
+  store.js - единственная точка доступа к данным.
   Назначение: приём, проверка, хранение и выдача записей. Модули не знают,
   где данные лежат физически.
   Зависимости: schema.js, любой адаптер.
@@ -68,7 +68,7 @@ export function createStore(adapter) {
       const rec = normalize(collection, input, ctx);
 
       const { ok, errors } = validate(collection, rec);
-      if (!ok) throw new Error(`запись не прошла проверку — ${errors.join('; ')}`);
+      if (!ok) throw new Error(`запись не прошла проверку - ${errors.join('; ')}`);
 
       await adapter.upsert(collection, rec);
       if (collection === 'settings') settingsCache = null;
@@ -128,7 +128,7 @@ export function createStore(adapter) {
       for (const row of rows) {
         const { ok, errors } = validate(collection, row);
         if (!ok) {
-          console.warn(`запись отклонена при обмене — ${errors.join('; ')}`);
+          console.warn(`запись отклонена при обмене - ${errors.join('; ')}`);
           continue;
         }
         const mine = await api.get(collection, row.id);
@@ -166,8 +166,8 @@ export function createStore(adapter) {
     },
 
     /**
-     * mode: 'replace' — заменить всё,
-     *       'merge'   — победит запись с более поздним updated_at.
+     * mode: 'replace' - заменить всё,
+     *       'merge'   - победит запись с более поздним updated_at.
      */
     async importAll(dump, { mode = 'merge' } = {}) {
       if (dump?.format !== 'progress-export') throw new Error('файл не похож на выгрузку приложения');

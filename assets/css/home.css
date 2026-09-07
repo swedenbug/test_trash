@@ -251,10 +251,13 @@
 
 .manual { display: flex; gap: var(--s-2); }
 
+/* line-height от body поднимал текст на пару пикселей: у поля своя высота,
+   и унаследованный межстрочный интервал смещает строку вверх. */
 .manual__input {
   flex: 1; min-width: 0;
   min-height: var(--tap);
   padding: 0 var(--s-3);
+  line-height: normal;
   border: 1px solid var(--c-line);
   border-radius: var(--r-sm);
   background: var(--c-raised);
@@ -352,7 +355,10 @@
 .chips { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
   min-height: 34px;
+  line-height: 1;
   padding: 0 var(--s-3);
   border: 1px solid var(--c-line);
   border-radius: 999px;
@@ -377,3 +383,150 @@
 .field__label { display: block; margin-bottom: var(--s-2); font-size: var(--t-sm); }
 .field__row { display: flex; gap: var(--s-2); }
 .field__hint { margin: var(--s-2) 0 0; color: var(--c-faint); font-size: var(--t-xs); line-height: 1.35; }
+
+/* --- вкладка «Сегодня» --- */
+
+.today { flex: 1; padding: 0 var(--s-4) var(--s-6); }
+
+.today__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--c-muted);
+}
+
+.today__title .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--c-raised);
+  font-family: var(--f-geo);
+  font-size: var(--t-xs);
+  color: var(--c-muted);
+}
+
+/* Кредит доверия - валюта, а не оценка. Поэтому она выглядит как ценность:
+   тёплый цвет, знак щита, крупная цифра. */
+.today__title .credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid rgba(224, 163, 46, 0.4);
+  border-radius: 999px;
+  background: rgba(224, 163, 46, 0.12);
+  color: var(--c-signal);
+  font-family: var(--f-geo);
+  font-size: var(--t-sm);
+  font-weight: 500;
+}
+
+.trow__bar {
+  display: block;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.09);
+  overflow: hidden;
+}
+
+.trow__bar i { display: block; height: 100%; border-radius: 2px; }
+
+.tlist { margin: 0; padding: 0; list-style: none; }
+
+.trow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 60px;
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--c-hairline);
+}
+
+.tlist .trow:first-child { border-top: 0; }
+.trow.is-dim { opacity: 0.45; }
+.trow__ring { flex: 0 0 auto; display: flex; }
+
+/* Значение уходит под название: пара в одну строку на телефоне разъезжается. */
+.trow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trow__main b { font-size: var(--t-sm); font-weight: 500; }
+.trow__main span { color: var(--c-muted); font-size: var(--t-xs); }
+
+.trow__quick {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: var(--c-raised);
+  color: var(--c-ink);
+  font-family: var(--f-body);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trow__more {
+  flex: 0 0 auto;
+  width: 32px; height: var(--tap);
+  border: 0; background: none;
+  color: var(--c-faint);
+  font-size: var(--t-base);
+  cursor: pointer;
+}
+
+/* --- цели --- */
+
+.goal {
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+
+.goal__head { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--s-3); }
+.goal__head b { font-size: var(--t-sm); font-weight: 500; }
+.goal__head span { color: var(--c-muted); font-size: var(--t-xs); }
+
+.goal__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+}
+
+.goal__bar i { display: block; height: 100%; border-radius: 2px; }
+
+.goal__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+  color: var(--c-muted);
+  font-size: var(--t-xs);
+}
+
+.goal__foot .is-low { color: var(--c-signal); }
+
+.goal__hint {
+  margin: var(--s-2) 0 0;
+  color: var(--c-faint);
+  font-size: var(--t-xs);
+  line-height: 1.35;
+}
+
+.today__note {
+  margin: var(--s-5) 0 var(--s-3);
+  color: var(--c-faint);
+  font-size: var(--t-xs);
+  line-height: 1.4;
+}

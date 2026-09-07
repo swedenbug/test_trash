@@ -1,5 +1,5 @@
 /*
-  water-screen.js — развёрнутый экран темы «Водный баланс».
+  water-screen.js - развёрнутый экран темы «Водный баланс».
   Назначение: ручной ввод и записи за сегодня. Открывается удержанием кружка.
   Зависимости: water (тема), undo.
 */
@@ -16,7 +16,7 @@ export function createWaterScreen({ water, undo, onChange }) {
         <button class="sheet-panel__close" type="button" aria-label="Закрыть">✕</button>
       </header>
 
-      <p class="sheet-panel__sum" id="w-sum">—</p>
+      <p class="sheet-panel__sum" id="w-sum">-</p>
 
       <div class="manual">
         <input class="manual__input" id="w-ml" type="number" inputmode="numeric"

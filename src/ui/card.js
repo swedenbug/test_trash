@@ -1,5 +1,5 @@
 /*
-  card.js — карточка модуля в ленте главного экрана.
+  card.js - карточка модуля в ленте главного экрана.
   Назначение: свёрнутый вид модуля. Приглушённое изображение на фоне,
   сверху график и процент, снизу цифры дня.
   Зависимости: circle.js (фигура капли), chart.js.
@@ -32,7 +32,7 @@ function emblem(glyph, color) {
 }
 
 function dots(active, total) {
-  if (total < 2) return '';        // одна страница — листать нечего
+  if (total < 2) return '';        // одна страница - листать нечего
   return `<div class="card__dots">${
     Array.from({ length: total }, (_, i) =>
       `<button type="button" class="card__dot${i === active ? ' is-on' : ''}"
@@ -95,7 +95,7 @@ export function cardHtml({
   const pct = Math.round((value / goal) * 100);
 
   /* Карточка сжимается, только когда показывать нечего вовсе.
-     Картинка есть — высота сохраняется, иначе её не разглядеть. */
+     Картинка есть - высота сохраняется, иначе её не разглядеть. */
   const flat = !background && views.length === 0;
 
   return `

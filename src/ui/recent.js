@@ -1,5 +1,5 @@
 /*
-  recent.js — лента недавних записей.
+  recent.js - лента недавних записей.
   Назначение: показать всё, что записано за сутки, по всем темам сразу,
   и дать это исправить.
   Зависимости: темы (по контракту ленты), undo.
@@ -22,7 +22,7 @@ export function createRecent({ themes, undo, onChange }) {
         <h2>Недавние записи</h2>
         <button class="sheet-panel__close" type="button" aria-label="Закрыть">✕</button>
       </header>
-      <p class="sheet-panel__hint">За последние сутки. Полная история — на экране темы</p>
+      <p class="sheet-panel__hint">За последние сутки. Полная история - на экране темы</p>
 
       <div class="chips" id="r-chips"></div>
       <ul class="records" id="r-list"></ul>

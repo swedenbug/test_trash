@@ -1,6 +1,6 @@
 /*
-  menu.js — панель меню.
-  Назначение: разделы, не помещающиеся на главный экран. Пока один — «Данные».
+  menu.js - панель меню.
+  Назначение: разделы, не помещающиеся на главный экран. Пока один - «Данные».
   Зависимости: store, backup.
 
   Раздел данных отвечает на четыре вопроса: сколько занято, переживут ли
@@ -140,7 +140,7 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
     const records = await store.count('water_intake');
 
     list.append(fact('Записей о воде', String(records)));
-    list.append(fact('Версия схемы', meta ? String(meta.schema_version) : '—'));
+    list.append(fact('Версия схемы', meta ? String(meta.schema_version) : '-'));
 
     if (quota) {
       const mb = (n) => `${(n / 1048576).toFixed(1)} МБ`;

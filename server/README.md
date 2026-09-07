@@ -4,43 +4,79 @@ Postgres и две ручки поверх него. Устройство отд
 
 Приложение работает и без сервера: местное хранилище остаётся главным. Сервер — копия и способ видеть одни и те же данные с телефона и с компьютера.
 
+Инструкция проверена на чистой Ubuntu 24.04 с cloud-init.
+
 ---
 
 ## Что понадобится
 
-- Сервер с Ubuntu 22.04 или новее. Самого дешёвого тарифа хватает с запасом.
-- Доменное имя, указывающее на этот сервер. Сертификат выдают на имя, а не на адрес.
+- Сервер с Ubuntu 22.04 или новее. Одного ядра и гигабайта памяти хватает с запасом.
+- **Настоящее доменное имя**, указывающее на этот сервер.
 - Открытые порты 80 и 443. Порт базы наружу не открывается никогда.
+
+**Про домен отдельно.** Технический адрес, который хостер показывает в панели в столбце «Домен», доменом не является. Сертификат на него не выдадут, а Caddy будет молча повторять попытки. Нужно имя, купленное у регистратора и направленное на адрес сервера записью A.
 
 ---
 
-## Шаг 1. Система и Postgres
+## Шаг 1. Система и пакеты
+
+Из репозиториев Ubuntu:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y postgresql nodejs npm caddy unattended-upgrades
+sudo apt install -y postgresql unattended-upgrades curl
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 ```
 
-Пользователь и база:
+**Node.js — из репозитория проекта.** В Ubuntu 24.04 лежит восемнадцатая версия: формально годится, но обновлений безопасности уже не получает.
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v        # ожидаем v22.x
+```
+
+**Caddy — тоже из своего репозитория**, в Ubuntu его нет вовсе:
+
+```bash
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+  | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install -y caddy
+```
+
+Пользователь базы и сама база:
 
 ```bash
 sudo -u postgres psql -c "create user progress with password 'ПРИДУМАЙ_ДЛИННЫЙ';"
 sudo -u postgres psql -c "create database progress owner progress;"
 ```
 
-Пароль набирать руками не придётся — он живёт только в `.env`. Пусть будет длинным.
+Пароль руками набирать не придётся — он живёт только в `.env`. Пусть будет длинным.
 
 **Проверка:** `sudo -u postgres psql -c "\l"` показывает базу `progress`.
 
 ---
 
-## Шаг 2. Таблицы
+## Шаг 2. Файлы и права
 
 ```bash
 sudo mkdir -p /opt/progress
 sudo chown $USER /opt/progress
 # скопировать сюда содержимое папки server/
+```
+
+**Права проверить отдельно.** Если файлы приехали копированием из домашней папки, они могут прийти с режимом `700`. Владельца сменит следующий шаг, а режим — нет: папка останется закрытой для всех, кроме владельца. Всплывёт это только на шестом шаге и в самой сбивающей с толку форме — `command not found` на существующий файл.
+
+```bash
+sudo chmod 755 /opt/progress /opt/progress/server
+```
+
+Таблицы:
+
+```bash
 psql "postgres://progress:ПАРОЛЬ@localhost/progress" -f /opt/progress/server/schema.sql
 ```
 
@@ -56,6 +92,7 @@ npm install --omit=dev
 cp env.example .env
 openssl rand -base64 36        # это и есть пропуск, вписать в .env
 nano .env                      # заполнить DATABASE_URL, SYNC_TOKEN, ALLOWED_ORIGIN
+chmod 600 .env                 # обязательно: cp создаёт файл, читаемый всей системой
 ```
 
 `ALLOWED_ORIGIN` — точный адрес приложения, без косой черты в конце. Для GitHub Pages это `https://имя.github.io`.
@@ -83,35 +120,75 @@ sudo nano /etc/caddy/Caddyfile     # заменить progress.example.com на 
 sudo systemctl reload caddy
 ```
 
-Caddy получает сертификат сам и сам его продлевает. Наружу открыты только `/changes` и `/health`, всё остальное отвечает отказом.
+Caddy получает сертификат сам и сам его продлевает. Для этого имя уже должно указывать на этот сервер.
 
-**Проверка с любого компьютера:**
-
-```bash
-curl https://ВАШЕ_ИМЯ/health
-```
+**Проверка с любого другого компьютера:** `curl https://ВАШЕ_ИМЯ/health`
 
 ---
 
 ## Шаг 5. Закрыть лишнее
 
+Брандмауэр:
+
 ```bash
 sudo ufw allow OpenSSH
 sudo ufw allow 80,443/tcp
 sudo ufw enable
+```
+
+**Отключение входа по паролю — самое опасное место всей инструкции.** Ошибиться здесь означает либо оставить дверь открытой, считая её закрытой, либо закрыть её вместе с собой снаружи.
+
+Сначала убедиться, что вход по ключу работает. Затем найти **все** места, где настройка задана:
+
+```bash
+sudo grep -rn "PasswordAuthentication" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+```
+
+На Ubuntu с cloud-init их обычно два. Файл `/etc/ssh/sshd_config.d/50-cloud-init.conf` **переопределяет основной**: правка только основного файла ничего не меняет. Это молчаливый отказ — команда отработала, а вход по паролю остался открыт.
+
+```bash
 sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' \
+  /etc/ssh/sshd_config.d/50-cloud-init.conf 2>/dev/null || true
+
+sudo sshd -t && echo "настройки в порядке"    # до перезапуска, не после
 sudo systemctl restart ssh
 ```
 
-Вход по паролю отключается **после** того, как проверен вход по ключу. Иначе можно закрыть дверь изнутри и остаться снаружи.
+Проверка `sshd -t` обязательна: при опечатке служба не поднимется, и обнаружится это в худший из возможных моментов.
+
+**Проверять результат нужно с клиента, а не с сервера:**
+
+```bash
+ssh -o PubkeyAuthentication=no пользователь@адрес     # ожидаем Permission denied (publickey)
+```
 
 ---
 
 ## Шаг 6. Резервные копии
 
+Скрипт работает от имени `postgres`, поэтому папку и журнал нужно приготовить заранее — сам он их создать не сможет, обе лежат в чужих владениях:
+
 ```bash
-sudo cp backup.sh /opt/progress/server/
-sudo chmod +x /opt/progress/server/backup.sh
+sudo mkdir -p /var/backups/progress
+sudo chown postgres:postgres /var/backups/progress
+
+sudo touch /var/log/progress-backup.log
+sudo chown postgres:postgres /var/log/progress-backup.log
+```
+
+Проверить руками:
+
+```bash
+sudo -u postgres bash -c '/opt/progress/server/backup.sh >> /var/log/progress-backup.log 2>&1'
+tail -5 /var/log/progress-backup.log
+```
+
+Обёртка `bash -c` нужна не для красоты: перенаправление выполняет оболочка вызывающего пользователя, ещё до переключения на `postgres`, и упирается в права на журнал.
+
+Расписание:
+
+```bash
 sudo -u postgres crontab -e
 # 0 4 * * *  /opt/progress/server/backup.sh >> /var/log/progress-backup.log 2>&1
 ```
@@ -122,7 +199,23 @@ sudo -u postgres crontab -e
 
 ---
 
-## Шаг 7. Приложение
+## Шаг 7. Проверка делом
+
+Все команды `systemctl enable` — пока лишь записи. Автозапуск, который ни разу не проверяли перезагрузкой, автозапуском не является. Та же логика, что и с резервными копиями.
+
+```bash
+sudo reboot
+# минуту спустя:
+/opt/progress/server/selftest.sh ВАШЕ_ИМЯ ПРОПУСК
+```
+
+`selftest.sh` проверяет и разрешённое, и закрытое: службы подняты, ручки отвечают, корень отдаёт отказ, обмен без пропуска отклонён, порт базы снаружи недоступен.
+
+Проверять закрытое важнее, чем открытое: сломанное разрешённое видно сразу, а незакрытая дверь молчит.
+
+---
+
+## Шаг 8. Приложение
 
 В приложении: меню → раздел «Сервер».
 
@@ -154,7 +247,7 @@ sudo -u postgres crontab -e
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-systemctl status progress-sync caddy postgresql
+/opt/progress/server/selftest.sh ВАШЕ_ИМЯ ПРОПУСК
 tail -20 /var/log/progress-backup.log
 ```
 
@@ -168,6 +261,9 @@ tail -20 /var/log/progress-backup.log
 |---------|---------------|
 | «сервер не принял пропуск» | `SYNC_TOKEN` в `.env` и строка в приложении. Пробел в конце тоже считается |
 | Обращение отклонено браузером | `ALLOWED_ORIGIN` должен точно совпадать с адресом приложения, без косой черты |
-| «нет сети» при живом интернете | Проверить `curl https://ВАШЕ_ИМЯ/health` — скорее всего дело в сертификате |
+| Caddy не получает сертификат | Имя должно указывать на сервер. Технический адрес хостера сертификата не получит |
+| `command not found` на существующий скрипт | Права на папку: `sudo chmod 755 /opt/progress /opt/progress/server` |
+| Копии не снимаются | Папка и журнал должны принадлежать `postgres`, см. шаг 6 |
+| Вход по паролю остался открыт | `sshd_config.d/50-cloud-init.conf` переопределяет основной файл |
 | Служба не поднимается | `journalctl -u progress-sync -n 50` |
 | Записи не доезжают | В меню видно, сколько ждёт отправки. Ноль означает, что устройство считает всё отправленным |

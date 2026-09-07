@@ -144,8 +144,12 @@ footer {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: var(--tap);
   padding: 0 var(--s-5);
+  line-height: 1;
   border: 1px solid var(--c-line);
   border-radius: var(--r-sm);
   background: var(--c-raised);
