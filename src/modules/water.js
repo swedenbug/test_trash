@@ -1,6 +1,6 @@
 /*
-  water.js — тема «Водный баланс».
-  Назначение: вся логика воды — запись, чтение, норма, срочность.
+  water.js - тема «Водный баланс».
+  Назначение: вся логика воды - запись, чтение, норма, срочность.
   Зависимости: store (передаётся снаружи), schema.js.
 
   Модуль не рисует и не слушает жесты. Он отвечает на вопросы оболочки
@@ -60,7 +60,7 @@ export function createWater(store) {
 
     today, goalFor, progress, intakesOn, lastIntake,
 
-    /** Записать приём. Возвращает созданную запись — её и отменяет таблетка. */
+    /** Записать приём. Возвращает созданную запись - её и отменяет таблетка. */
     async add(amountMl, source = TAP) {
       return store.put('water_intake', {
         at: nowIso(),
@@ -98,7 +98,7 @@ export function createWater(store) {
         store.setting('water.hard_after_min'),
       ]);
 
-      // Записей нет вовсе — требовать нечего, это первый запуск.
+      // Записей нет вовсе - требовать нечего, это первый запуск.
       if (!last) {
         return { level: 'done', urgency: 0, since: null, fill: 0, value, goal,
                  summary: `0 из ${goal} мл` };
@@ -107,7 +107,7 @@ export function createWater(store) {
       const since = Math.floor((now - new Date(last.at)) / 60000);
       let level = since < soft ? 'done' : since < hard ? 'soft' : 'hard';
 
-      // Норма закрыта — выше мягкого уровня не поднимаемся.
+      // Норма закрыта - выше мягкого уровня не поднимаемся.
       if (value >= goal && level === 'hard') level = 'soft';
 
       return {
