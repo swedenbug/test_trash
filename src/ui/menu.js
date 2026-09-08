@@ -8,6 +8,7 @@
 */
 
 import { exportToFile, importFromFile } from '../core/backup.js';
+import { VERSION } from '../version.js';
 
 /* Служебные имена сервера человеку не показываем. */
 const COLLECTION = {
@@ -135,6 +136,15 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
 
     const list = $('#s-facts');
     list.innerHTML = '';
+
+    /*
+      Версия сборки - первой строкой. Кэш Pages живёт десять минут, и без этой
+      строки нельзя отличить «правка не работает» от «правка ещё не доехала».
+      Один раз это уже стоило захода: проверяли версию, которой не было.
+    */
+    list.append(fact('Версия', VERSION.stamp,
+      `Собрано ${new Date(VERSION.built).toLocaleString('ru-RU')}`));
+
     list.append(fact('Настроен', st.configured ? 'да' : 'нет',
       st.configured ? '' : 'Пока адрес и пропуск не заданы, данные живут только здесь.'));
     list.append(fact('Последний обмен', st.lastSync
@@ -270,8 +280,13 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
   $('#s-run').addEventListener('click', async () => {
     syncSay('Обмениваюсь…');
     try {
-      const { pushed, pulled } = await sync.run();
-      syncSay(`Отправлено ${pushed}, получено ${pulled}.`, 'is-ok');
+      const { pushed, refused, pulled } = await sync.run();
+      // Отказ называется вслух и сразу: молчание про сеть - решение,
+      // молчание про непринятую запись - потеря.
+      syncSay(refused > 0
+        ? `Отправлено ${pushed}, не принято ${refused}, получено ${pulled}.`
+        : `Отправлено ${pushed}, получено ${pulled}.`,
+      refused > 0 ? 'is-bad' : 'is-ok');
       await refresh();
       onChange?.();
     } catch (e) {

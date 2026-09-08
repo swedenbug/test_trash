@@ -110,7 +110,7 @@ export function createSync(store) {
 
     if (!total) {
       if (touched) await writeRejected(rejected);
-      return 0;
+      return { sent: 0, refused: 0 };
     }
 
     const answer = await request(config, '/changes', {
@@ -123,7 +123,8 @@ export function createSync(store) {
       Без этого разбора курсор уехал бы по всей пачке, а отвергнутая запись
       пропала бы тихо - хуже, чем отказ пачки целиком.
     */
-    for (const r of answer?.rejected ?? []) {
+    const refused = answer?.rejected ?? [];
+    for (const r of refused) {
       if (!r?.id) continue;
       rejected[r.id] = { table: r.table ?? null, reason: r.reason ?? 'constraint', at: nowIso() };
       touched = true;
@@ -135,7 +136,15 @@ export function createSync(store) {
       await store.put('sync_state', { ...state, pushed_at: mark });
     }
 
-    return total;
+    /*
+      Отправленное и принятое - разные числа. Считать успех по числу отосланных
+      записей значит показывать «Отправлено 3» на пачке, отвергнутой целиком.
+
+      Считать по accepted из ответа тоже нельзя: там количество изменённых строк,
+      и запись, уже лежащая на сервере в той же версии, даёт ноль. После
+      переотправки вышло бы «отправлено 0» - новая неправда вместо старой.
+    */
+    return { sent: total, refused: refused.length };
   }
 
   async function pull(config) {
@@ -251,9 +260,9 @@ export function createSync(store) {
 
         // Сначала отдаём своё, потом забираем чужое: так свежая местная правка
         // не будет затёрта той же записью, пришедшей с сервера в старой версии.
-        const pushed = await push(config);
+        const { sent, refused } = await push(config);
         const pulled = await pull(config);
-        return { pushed, pulled, at: nowIso() };
+        return { pushed: sent, refused, pulled, at: nowIso() };
       })();
 
       try {
