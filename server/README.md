@@ -80,7 +80,24 @@ sudo chmod 755 /opt/progress /opt/progress/server
 psql "postgres://progress:ПАРОЛЬ@localhost/progress" -f /opt/progress/server/schema.sql
 ```
 
-**Проверка:** `psql ... -c "\dt"` показывает три таблицы.
+**Схему применять именно пользователем `progress`.** Таблица принадлежит тому, кто её
+создал, а служба ходит в базу пользователем `progress`. Применение от `postgres` — например
+через `sudo -u postgres psql`, чтобы не набирать пароль, — заводит таблицы во владении
+`postgres`, и служба получает `permission denied for table` на каждую из них. Старые
+таблицы при этом работают, потому что создавались правильно, и расхождение выглядит
+как поломка новых таблиц, а не как ошибка владельца.
+
+Если схема всё-таки применена от `postgres`, владельца нужно вернуть — по одной строке
+на каждую таблицу из `schema.sql`:
+
+```sql
+alter table theme owner to progress;
+alter table theme_goal owner to progress;
+alter table entry owner to progress;
+```
+
+**Проверка:** `psql ... -c "\dt"` показывает таблицы, и в колонке владельца везде
+`progress`. Одного лишь наличия таблиц недостаточно: с чужим владельцем они тоже видны.
 
 ---
 
@@ -255,6 +272,30 @@ tail -20 /var/log/progress-backup.log
 
 ---
 
+
+## Обновление файлов
+
+Установка ставит владельца один раз, командой `chown -R progress:progress` на шаге 3.
+Файлы, привезённые позже, этой командой не охвачены и приезжают чужими: `sudo install`
+и `sudo cp` оставляют владельцем `root`. Служба такие файлы читает, режим `644` это
+позволяет, но в папке появляется разнобой, а юнит работает с `ProtectSystem=strict`.
+
+Поэтому владелец выставляется явно, тем же действием, что и копирование:
+
+```bash
+sudo install -m 644 /tmp/schema.sql /tmp/index.js /opt/progress/server/
+sudo install -m 755 /tmp/selftest.sh /opt/progress/server/
+sudo chown progress:progress /opt/progress/server/{schema.sql,index.js,selftest.sh}
+sudo systemctl restart progress-sync
+```
+
+**Проверка:** `ls -l /opt/progress/server` — владелец `progress` у всех файлов,
+`systemctl is-active progress-sync` отвечает `active`.
+
+Если менялась схема — после применения `schema.sql` проверить владельца таблиц,
+см. шаг 2.
+
+---
 ## Если что-то не работает
 
 | Признак | Куда смотреть |
@@ -266,4 +307,6 @@ tail -20 /var/log/progress-backup.log
 | Копии не снимаются | Папка и журнал должны принадлежать `postgres`, см. шаг 6 |
 | Вход по паролю остался открыт | `sshd_config.d/50-cloud-init.conf` переопределяет основной файл |
 | Служба не поднимается | `journalctl -u progress-sync -n 50` |
+| `permission denied for table` на части таблиц | Схему применили от `postgres`. Вернуть владельца, см. шаг 2 |
+| `operator does not exist: uuid ~~ unknown` | `like` по колонке `uuid`. Нужно `id::text like '...'` |
 | Записи не доезжают | В меню видно, сколько ждёт отправки. Ноль означает, что устройство считает всё отправленным |

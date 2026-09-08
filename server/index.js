@@ -42,6 +42,25 @@ const TABLES = {
                  'created_at', 'updated_at', 'deleted_at'],
   water_goal:   ['id', 'ml', 'effective_from', 'created_at', 'updated_at', 'deleted_at'],
   settings:     ['id', 'value', 'updated_at'],
+
+  theme:        ['id', 'name', 'short', 'description', 'parent_id', 'kind', 'unit',
+                 'direction', 'goal_period', 'urgency_kind', 'soft_after', 'hard_after',
+                 'quick', 'color', 'emblem', 'fill', 'sort', 'active',
+                 'created_at', 'updated_at', 'deleted_at'],
+  theme_goal:   ['id', 'theme_id', 'value', 'effective_from',
+                 'created_at', 'updated_at', 'deleted_at'],
+  entry:        ['id', 'theme_id', 'at', 'local_date', 'value', 'source', 'note',
+                 'created_at', 'updated_at', 'deleted_at'],
+};
+
+/*
+  Колонки jsonb. Объект драйвер сериализует в JSON сам, а массив — в литерал
+  массива Postgres: [250, 1000] уехало бы как {250,1000}, и jsonb такое не примет.
+  Поэтому значение таких колонок готовим строкой явно, не полагаясь на драйвер.
+*/
+const JSONB = {
+  settings: ['value'],
+  theme:    ['quick'],
 };
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 4 });
@@ -137,12 +156,16 @@ async function handlePush(req, res) {
 
     for (const [table, columns] of Object.entries(TABLES)) {
       const rows = Array.isArray(incoming[table]) ? incoming[table] : [];
+      const jsonb = JSONB[table] ?? [];
       let count = 0;
 
       for (const row of rows) {
         if (!row || typeof row.id !== 'string' || !row.updated_at) continue;
 
-        const values = columns.map((c) => (row[c] === undefined ? null : row[c]));
+        const values = columns.map((c) => {
+          const v = row[c] === undefined ? null : row[c];
+          return jsonb.includes(c) && v !== null ? JSON.stringify(v) : v;
+        });
         const holders = columns.map((_, i) => `$${i + 1}`).join(', ');
         const updates = columns.filter((c) => c !== 'id')
           .map((c) => `${c} = excluded.${c}`).join(', ');
