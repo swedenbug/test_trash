@@ -12,8 +12,6 @@ import { VERSION } from '../version.js';
 
 /* Служебные имена сервера человеку не показываем. */
 const COLLECTION = {
-  water_intake: 'Вода',
-  water_goal:   'Норма воды',
   settings:     'Настройки',
   theme:        'Тема',
   theme_goal:   'Норма темы',
@@ -27,7 +25,7 @@ const REASON = {
   bad_json:      'повреждённое значение',
 };
 
-export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
+export function createMenu({ store, sync, onChange, onOpenRecent }) {
   const el = document.createElement('div');
   el.className = 'sheet-wrap';
   el.hidden = true;
@@ -44,19 +42,6 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
           <span>Недавние записи</span><span class="menu-link__go">›</span>
         </button></li>
       </ul>
-
-      <h3 class="sheet-panel__sub">Вода</h3>
-      <div class="field">
-        <label class="field__label" for="m-goal">Дневная норма, мл</label>
-        <div class="field__row">
-          <input class="manual__input" id="m-goal" type="number" inputmode="numeric"
-                 min="200" max="10000" step="100">
-          <button class="btn" id="m-goal-save" type="button">Сохранить</button>
-        </div>
-        <p class="field__hint">Новая норма действует с сегодняшнего дня. Прошлые дни
-          остаются посчитанными по той норме, что была тогда.</p>
-        <p class="m-note" id="m-goal-note" hidden></p>
-      </div>
 
       <h3 class="sheet-panel__sub">Сервер</h3>
       <ul class="facts" id="s-facts"></ul>
@@ -209,8 +194,6 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
 
   async function refresh() {
     await refreshSync();
-    $('#m-goal').value = String(await water.goal());
-    $('#m-goal-note').hidden = true;
 
     const list = $('#m-facts');
     list.innerHTML = '';
@@ -218,9 +201,11 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
     const meta = await store.meta();
     const quota = await store.quota();
     const persisted = await store.isPersisted();
-    const records = await store.count('water_intake');
+    const themes  = await store.count('theme');
+    const records = await store.count('entry');
 
-    list.append(fact('Записей о воде', String(records)));
+    list.append(fact('Тем', String(themes)));
+    list.append(fact('Записей', String(records)));
     list.append(fact('Версия схемы', meta ? String(meta.schema_version) : '-'));
 
     if (quota) {
@@ -234,24 +219,6 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
       persisted ? '' : 'Без него браузер может стереть данные, если приложением долго не пользоваться. Копия файлом надёжнее любых обещаний браузера.',
     ));
   }
-
-  $('#m-goal-save').addEventListener('click', async () => {
-    const note = $('#m-goal-note');
-    const ml = Number($('#m-goal').value);
-
-    if (!Number.isFinite(ml) || ml < 200 || ml > 10000) {
-      note.textContent = 'Норма должна быть от 200 до 10000 мл';
-      note.className = 'm-note is-bad';
-      note.hidden = false;
-      return;
-    }
-
-    await water.setGoal(ml);
-    note.textContent = 'Норма сохранена.';
-    note.className = 'm-note is-ok';
-    note.hidden = false;
-    onChange?.();
-  });
 
   function syncSay(text, kind = '') {
     const note = $('#s-note');

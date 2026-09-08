@@ -28,6 +28,27 @@ const steps = {
     const rows = await adapter.readAll('sync_state');
     if (!rows.length) await adapter.writeAll('sync_state', []);
   },
+
+  /*
+    3: вода перестала быть отдельным модулем. Записи не переносятся - их нет:
+    всё, что лежало в водных таблицах, было проверочным и накопилось при отладке
+    обмена. Перенос ради этого стоил бы захода и требовал бы сохранения
+    идентификаторов, полного обмена на каждом устройстве и месяца страховки.
+
+    Шаг повторяем: удаление уже удалённого - не ошибка. Иначе второй запуск
+    приложения падал бы на пустом месте, а выглядело бы это как порча данных.
+  */
+  3: async (adapter) => {
+    for (const c of ['water_intake', 'water_goal']) {
+      await adapter.drop(c);
+    }
+
+    const rows = await adapter.readAll('settings');
+    const gone = rows.filter((r) => String(r.id).startsWith('water.'));
+    if (gone.length) {
+      await adapter.writeAll('settings', rows.filter((r) => !gone.includes(r)));
+    }
+  },
 };
 
 /**

@@ -23,7 +23,10 @@ $CHECK = 'tools/check-files.ps1'
 $files = Get-ChildItem -Recurse -File |
   ForEach-Object { (Resolve-Path -Relative $_.FullName) -replace '^\.\\','' -replace '\\','/' } |
   Where-Object {
-    $_ -notlike '.git/*' -and $_ -notlike 'tools/*' -and
+    # Iz tools iskluchayutsya tolko .ps1: check-files.ps1 khranit summy v sebe,
+    # a stamp.ps1 ego perepisyvaet - ikh sobstvennye summy ne skhodyatsya nikogda.
+    # Vsyo ostalnoe v tools - obychnye fayly i proveryayutsya naravne.
+    $_ -notlike '.git/*' -and $_ -notlike 'tools/*.ps1' -and
     $_ -notlike 'server/node_modules/*' -and $_ -ne 'server/.env' -and
     $_ -notlike 'preview-*.png'
   } | Sort-Object

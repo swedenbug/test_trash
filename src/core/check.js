@@ -28,30 +28,37 @@ const tests = [
     name: 'Пустая таблица читается',
     async run() {
       await store.wipe();
-      const rows = await store.list('water_intake');
+      const rows = await store.list('entry');
       if (rows.length !== 0) throw new Error(`ожидалось 0 записей, получено ${rows.length}`);
       return 'нет записей';
     },
   },
 
   {
-    name: 'Запись создаётся',
+    name: 'Тема и запись создаются',
     async run() {
-      const rec = await store.put('water_intake', {
-        at: nowIso(), amount_ml: 250, source: 'tap',
+      const theme = await store.put('theme', {
+        name: 'Проверка', kind: 'count', urgency_kind: 'none',
+      });
+      if (!Array.isArray(theme.quick)) throw new Error('quick по умолчанию не массив');
+      if (theme.active !== true) throw new Error('active по умолчанию не да');
+      ctx.themeId = theme.id;
+
+      const rec = await store.put('entry', {
+        theme_id: theme.id, at: nowIso(), value: 250, source: 'tap',
       });
       if (!rec.id) throw new Error('не проставлен id');
       if (!rec.created_at || !rec.updated_at) throw new Error('не проставлены метки времени');
       if (rec.deleted_at !== null) throw new Error('запись создана уже удалённой');
       ctx.id = rec.id;
-      return `${rec.amount_ml} мл, id получен`;
+      return `тема и запись на ${rec.value}, id получены`;
     },
   },
 
   {
     name: 'Локальная дата выведена',
     async run() {
-      const rec = await store.get('water_intake', ctx.id);
+      const rec = await store.get('entry', ctx.id);
       const expected = localDate(rec.at, 0);
       if (rec.local_date !== expected) {
         throw new Error(`ожидалось ${expected}, получено ${rec.local_date}`);
@@ -63,27 +70,43 @@ const tests = [
   {
     name: 'Негодная запись отклонена',
     async run() {
+      /*
+        Верхней границы у value больше нет - потолок в 5000 был правилом воды.
+        Проверка на 9999 потеряла смысл и заменена на запись без темы:
+        `theme_id` обязателен, и его отсутствие раньше не проверялось ничем.
+      */
       const cases = [
-        { at: nowIso(), amount_ml: 0,    source: 'tap'  },
-        { at: nowIso(), amount_ml: 250,  source: 'дно'  },
-        { at: nowIso(), amount_ml: 9999, source: 'tap'  },
-        { at: 'вчера',  amount_ml: 250,  source: 'tap'  },
+        { theme_id: ctx.themeId, at: nowIso(), value: -1,  source: 'tap' },
+        { theme_id: ctx.themeId, at: nowIso(), value: 250, source: 'дно' },
+        { at: nowIso(), value: 250, source: 'tap' },
+        { theme_id: ctx.themeId, at: 'вчера',  value: 250, source: 'tap' },
       ];
       for (const bad of cases) {
         let passed = false;
-        try { await store.put('water_intake', bad); passed = true; } catch (e) { /* ожидаемо */ }
+        try { await store.put('entry', bad); passed = true; } catch (e) { /* ожидаемо */ }
         if (passed) throw new Error(`пропущена негодная запись: ${JSON.stringify(bad)}`);
       }
-      return `${cases.length} из ${cases.length} отклонены`;
+
+      // Отдельно - форма quick: у сервера на этой колонке jsonb_typeof = 'array'.
+      let quickPassed = false;
+      try {
+        await store.put('theme', {
+          name: 'Кривая', kind: 'count', urgency_kind: 'none', quick: '250',
+        });
+        quickPassed = true;
+      } catch (e) { /* ожидаемо */ }
+      if (quickPassed) throw new Error('quick строкой прошёл проверку');
+
+      return `${cases.length + 1} из ${cases.length + 1} отклонены`;
     },
   },
 
   {
     name: 'Неописанное поле отклонено',
     async run() {
-      const { ok } = validate('water_intake', {
-        id: 'x', created_at: nowIso(), updated_at: nowIso(), deleted_at: null,
-        at: nowIso(), local_date: '2026-01-01', amount_ml: 250, source: 'tap', note: null,
+      const { ok } = validate('entry', {
+        id: 'x', theme_id: 't', created_at: nowIso(), updated_at: nowIso(), deleted_at: null,
+        at: nowIso(), local_date: '2026-01-01', value: 250, source: 'tap', note: null,
         лишнее: 1,
       });
       if (ok) throw new Error('лишнее поле прошло проверку');
@@ -95,10 +118,10 @@ const tests = [
     name: 'Подписка срабатывает',
     async run() {
       let calls = 0;
-      const off = store.onChange('water_intake', () => { calls++; });
-      await store.put('water_intake', { at: nowIso(), amount_ml: 500, source: 'hold' });
+      const off = store.onChange('entry', () => { calls++; });
+      await store.put('entry', { theme_id: ctx.themeId, at: nowIso(), value: 500, source: 'hold' });
       off();
-      await store.put('water_intake', { at: nowIso(), amount_ml: 300, source: 'manual' });
+      await store.put('entry', { theme_id: ctx.themeId, at: nowIso(), value: 300, source: 'manual' });
       if (calls !== 1) throw new Error(`ожидался 1 вызов, получено ${calls}`);
       return 'вызвана и отписана';
     },
@@ -107,7 +130,7 @@ const tests = [
   {
     name: 'Список отсортирован и полон',
     async run() {
-      const rows = await store.list('water_intake');
+      const rows = await store.list('entry');
       if (rows.length !== 3) throw new Error(`ожидалось 3 записи, получено ${rows.length}`);
       for (let i = 1; i < rows.length; i++) {
         if (rows[i - 1].at < rows[i].at) throw new Error('порядок нарушен');
@@ -119,10 +142,10 @@ const tests = [
   {
     name: 'Мягкое удаление',
     async run() {
-      await store.remove('water_intake', ctx.id);
-      const visible = await store.list('water_intake');
-      const all = await store.list('water_intake', { includeDeleted: true });
-      const gone = await store.get('water_intake', ctx.id);
+      await store.remove('entry', ctx.id);
+      const visible = await store.list('entry');
+      const all = await store.list('entry', { includeDeleted: true });
+      const gone = await store.get('entry', ctx.id);
       if (visible.length !== 2) throw new Error('удалённая запись осталась в списке');
       if (all.length !== 3) throw new Error('запись стёрта насовсем');
       if (!gone.deleted_at) throw new Error('не проставлена метка удаления');
@@ -133,8 +156,8 @@ const tests = [
   {
     name: 'Возврат удалённой записи',
     async run() {
-      await store.restore('water_intake', ctx.id);
-      const visible = await store.list('water_intake');
+      await store.restore('entry', ctx.id);
+      const visible = await store.list('entry');
       if (visible.length !== 3) throw new Error('запись не вернулась');
       return 'вернулась в список';
     },
@@ -143,18 +166,20 @@ const tests = [
   {
     name: 'Настройки: значение по умолчанию',
     async run() {
-      const v = await store.setting('water.tap_ml');
-      if (v !== 250) throw new Error(`ожидалось 250, получено ${v}`);
-      return `${v} мл`;
+      // Водные ключи ушли вместе с водой; из умолчаний остался один.
+      const v = await store.setting('day_start_hour');
+      if (v !== 0) throw new Error(`ожидался 0, получено ${v}`);
+      return `граница суток ${v}:00`;
     },
   },
 
   {
     name: 'Настройки: сохранение',
     async run() {
-      await store.setSetting('water.tap_ml', 300);
-      const v = await store.setting('water.tap_ml');
-      if (v !== 300) throw new Error(`ожидалось 300, получено ${v}`);
+      await store.setSetting('day_start_hour', 4);
+      const v = await store.setting('day_start_hour');
+      if (v !== 4) throw new Error(`ожидалось 4, получено ${v}`);
+      await store.setSetting('day_start_hour', 0);   // не влиять на соседние проверки
       return 'значение перекрыто';
     },
   },
@@ -166,10 +191,10 @@ const tests = [
       if (dump.format !== 'progress-export') throw new Error('неверный формат выгрузки');
 
       await store.wipe();
-      if ((await store.list('water_intake')).length !== 0) throw new Error('очистка не сработала');
+      if ((await store.list('entry')).length !== 0) throw new Error('очистка не сработала');
 
       await store.importAll(dump, { mode: 'replace' });
-      const rows = await store.list('water_intake');
+      const rows = await store.list('entry');
       if (rows.length !== 3) throw new Error(`после загрузки ${rows.length} записей вместо 3`);
       return `${rows.length} записи восстановлены`;
     },
@@ -178,20 +203,20 @@ const tests = [
   {
     name: 'Слияние по времени изменения',
     async run() {
-      const rows = await store.list('water_intake');
+      const rows = await store.list('entry');
       const target = rows[0];
 
       const dump = await store.exportAll();
       const copy = JSON.parse(JSON.stringify(dump));
-      const edited = copy.data.water_intake.find((r) => r.id === target.id);
-      edited.amount_ml = 777;
+      const edited = copy.data.entry.find((r) => r.id === target.id);
+      edited.value = 777;
       edited.updated_at = new Date(Date.now() + 60000).toISOString();
 
       await store.importAll(copy, { mode: 'merge' });
-      const after = await store.get('water_intake', target.id);
-      if (after.amount_ml !== 777) throw new Error('победила устаревшая запись');
+      const after = await store.get('entry', target.id);
+      if (after.value !== 777) throw new Error('победила устаревшая запись');
 
-      const count = (await store.list('water_intake')).length;
+      const count = (await store.list('entry')).length;
       if (count !== 3) throw new Error(`слияние размножило записи: ${count}`);
       return 'победила свежая версия';
     },
@@ -255,10 +280,10 @@ const tests = [
   {
     name: 'Таблица состояния обмена',
     async run() {
-      const state = { id: 'water_intake', pulled_at: null, pushed_at: nowIso() };
+      const state = { id: 'entry', pulled_at: null, pushed_at: nowIso() };
       const saved = await store.put('sync_state', state);
       if (saved.url !== null) throw new Error('не проставлено значение по умолчанию');
-      const back = await store.get('sync_state', 'water_intake');
+      const back = await store.get('sync_state', 'entry');
       if (back.pushed_at !== state.pushed_at) throw new Error('отметка не сохранилась');
       return 'курсоры пишутся и читаются';
     },
@@ -269,14 +294,14 @@ const tests = [
     async run() {
       const mark = new Date(Date.now() + 3600000).toISOString();
       const alien = {
-        id: crypto.randomUUID(), at: nowIso(), local_date: '2026-01-01',
-        amount_ml: 300, source: 'manual', note: null,
+        id: crypto.randomUUID(), theme_id: ctx.themeId, at: nowIso(), local_date: '2026-01-01',
+        value: 300, source: 'manual', note: null,
         created_at: mark, updated_at: mark, deleted_at: null,
       };
-      const applied = await store.mergeIncoming('water_intake', [alien]);
+      const applied = await store.mergeIncoming('entry', [alien]);
       if (applied !== 1) throw new Error('запись не принята');
 
-      const saved = await store.get('water_intake', alien.id);
+      const saved = await store.get('entry', alien.id);
       if (saved.updated_at !== mark) throw new Error('время правки перебито своим');
       ctx.alienId = alien.id;
       return 'время правки сохранено';
@@ -286,14 +311,14 @@ const tests = [
   {
     name: 'Устаревшая чужая запись отклоняется',
     async run() {
-      const mine = await store.get('water_intake', ctx.alienId);
-      const stale = { ...mine, amount_ml: 999,
+      const mine = await store.get('entry', ctx.alienId);
+      const stale = { ...mine, value: 999,
                       updated_at: new Date(Date.parse(mine.updated_at) - 60000).toISOString() };
-      const applied = await store.mergeIncoming('water_intake', [stale]);
+      const applied = await store.mergeIncoming('entry', [stale]);
       if (applied !== 0) throw new Error('победила устаревшая версия');
 
-      const after = await store.get('water_intake', ctx.alienId);
-      if (after.amount_ml !== mine.amount_ml) throw new Error('запись всё-таки перезаписана');
+      const after = await store.get('entry', ctx.alienId);
+      if (after.value !== mine.value) throw new Error('запись всё-таки перезаписана');
       return 'победила свежая';
     },
   },
@@ -302,12 +327,12 @@ const tests = [
     name: 'Негодная чужая запись не ломает приём',
     async run() {
       const good = {
-        id: crypto.randomUUID(), at: nowIso(), local_date: '2026-01-01',
-        amount_ml: 200, source: 'tap', note: null,
+        id: crypto.randomUUID(), theme_id: ctx.themeId, at: nowIso(), local_date: '2026-01-01',
+        value: 200, source: 'tap', note: null,
         created_at: nowIso(), updated_at: nowIso(), deleted_at: null,
       };
-      const bad = { id: crypto.randomUUID(), amount_ml: -5, source: 'дно' };
-      const applied = await store.mergeIncoming('water_intake', [bad, good]);
+      const bad = { id: crypto.randomUUID(), value: -5, source: 'дно' };
+      const applied = await store.mergeIncoming('entry', [bad, good]);
       if (applied !== 1) throw new Error(`принято ${applied} вместо одной`);
       return 'негодная отброшена, годная принята';
     },
@@ -317,7 +342,7 @@ const tests = [
     name: 'Уборка за собой',
     async run() {
       await store.wipe();
-      const left = await store.list('water_intake', { includeDeleted: true });
+      const left = await store.list('entry', { includeDeleted: true });
       if (left.length !== 0) throw new Error('тестовые данные остались');
       return 'тестовое пространство пусто';
     },
