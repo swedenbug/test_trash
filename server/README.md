@@ -299,11 +299,25 @@ tail -20 /var/log/progress-backup.log
 Поэтому владелец задаётся тем же действием, что и копирование, — у `install` для
 этого есть `-o` и `-g`. Отдельный `chown` следом не нужен:
 
+С локальной машины:
+
 ```bash
-sudo install -m 644 -o progress -g progress /tmp/schema.sql /tmp/index.js /opt/progress/server/
+scp server/schema.sql server/index.js server/selftest.sh server/README.md \
+    ПОЛЬЗОВАТЕЛЬ@ВАШЕ_ИМЯ:/tmp/
+```
+
+На сервере:
+
+```bash
+sudo install -m 644 -o progress -g progress \
+     /tmp/schema.sql /tmp/index.js /tmp/README.md /opt/progress/server/
 sudo install -m 755 -o progress -g progress /tmp/selftest.sh /opt/progress/server/
 sudo systemctl restart progress-sync
 ```
+
+**Этот файл везётся вместе с остальными,** хотя служба его не читает. Инструкция,
+разошедшаяся с репозиторием, опаснее отсутствующей: её открывают на машине,
+где чинят, и следуют ей как действующей.
 
 **Проверка:** `ls -l /opt/progress/server` — владелец `progress` у всех файлов,
 `systemctl is-active progress-sync` отвечает `active`.
