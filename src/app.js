@@ -1,32 +1,92 @@
 /*
   app.js - рабочее приложение.
-  Назначение: собрать главный экран и связать его с хранилищем.
-  Зависимости: ядро, элементы интерфейса.
+  Назначение: собрать главный экран на живых данных и связать жесты с движком.
+  Зависимости: ядро, движок тем, элементы интерфейса.
 
-  Заход 2 снёс воду и не завёл движок тем: ряд кружков пуст, лента пуста.
-  Так и задумано. Оболочка обязана работать без единой темы - это то самое
-  правило, по которому любой модуль можно вырезать, а приложение продолжает
-  запускаться. Сейчас оно проверяется предельным случаем: тем нет вовсе.
+  Оболочка не знает ни одной темы. Она спрашивает движок, что показывать,
+  и рисует ответ: сколько тем, какие у них знаки, цвета и пороги - её не касается.
+  Проверка правила: чтобы завести тему, этот файл править не нужно.
 
-  Экран наполняется в заходе 4, когда появится движок.
+  Экрана темы, карточек и графиков здесь пока нет - они в заходе 4б.
 */
 
 import { createLocalAdapter } from './core/adapter-local.js';
 import { createStore } from './core/store.js';
 import { createSync } from './core/sync.js';
+import { createEngine, TAP, HOLD } from './modules/engine.js';
+import { circleSvg } from './ui/circle.js';
 import { createUndo } from './ui/undo.js';
+import { attachHold } from './ui/gestures.js';
 import { createMenu } from './ui/menu.js';
 import { createRecent } from './ui/recent.js';
 
 const store = createStore(createLocalAdapter());
+const engine = createEngine(store);
 const sync = createSync(store);
 
 const undo = createUndo(document.body);
 
-/* Тем нет: лента недавних записей получает пустой список и показывает пустоту. */
-const recent = createRecent({ themes: [], undo, onChange: render });
+/* Лента недавних записей спрашивает темы по одной. Список наполняется при
+   отрисовке: на старте тем ещё нет, а панель создаётся один раз. */
+const recentThemes = [];
+const recent = createRecent({ themes: recentThemes, undo, onChange: render });
 const menu = createMenu({ store, sync, onChange: render, onOpenRecent: () => recent.open() });
 document.body.append(menu.el, recent.el);
+
+/* Порядок кружков: сначала срочные. Внутри уровня - по sort темы. */
+const WEIGHT = { hard: 2, soft: 1, done: 0 };
+
+/* Чем заполнен кружок. Слева - как это названо в схеме, справа - в circle.js. */
+const CONTENT = {
+  emblem_fill:     'fill',
+  emblem_solid:    'solid',
+  emblem_detailed: 'detail',
+  glyph:           'letter',
+  value:           'value',
+  percent:         'percent',
+};
+
+let percentUntil = 0;      // до какого момента показывать процент в кружке
+let holdId = null;         // тема, которую сейчас удерживают
+let holdState = null;      // состояние текущего удержания
+let painted = [];          // последняя отрисовка: тема и её срочность
+
+/*
+  Отписки от жестов. Держать их обязательно.
+
+  Перерисовка заменяет разметку целиком, и если она случится, пока палец
+  на кружке, обработчик остаётся висеть на выброшенном элементе. Отпускание
+  придёт уже новому, а старый об этом не узнает: его кадровый цикл продолжит
+  идти и будет рисовать кольцо удержания, которое никто не держит. Через три
+  секунды он вдобавок сообщит о переходе - жест, которого не было.
+
+  Перерисовку приносит обмен, он идёт сам по себе, - отсюда «иногда».
+*/
+let unbind = [];
+
+/* Знак темы записан строкой с указанием набора: silhouette:drop, char:Ф. */
+function emblemOf(theme) {
+  const [set, name] = String(theme.emblem ?? '').split(':');
+  if (set === 'char') return { emblem: 'drop', glyph: name || null };
+  return { emblem: name || 'drop', glyph: null };
+}
+
+function ringSvg(theme, urgency, withHold) {
+  const { emblem, glyph } = emblemOf(theme);
+  return circleSvg({
+    size: 72,
+    level: urgency.level,
+    fill: urgency.fill,
+    emblem,
+    glyph,
+    content: CONTENT[theme.fill] ?? 'fill',
+    color: theme.color ?? 'var(--c-muted)',
+    value: urgency.value,
+    goal: urgency.goal ?? 0,
+    percent: performance.now() < percentUntil ? Math.round(urgency.fill * 100) : null,
+    hold: withHold ? holdState : null,
+  });
+}
 
 function header() {
   const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -56,19 +116,130 @@ function tabbar() {
 }
 
 async function render() {
+  const themes = await engine.list();
+
+  const withUrgency = [];
+  for (const t of themes) {
+    withUrgency.push({ theme: t, urgency: await engine.getUrgency(t.id) });
+  }
+
+  /* Уровень нигде не хранится: он посчитан только что и определяет порядок
+     прямо сейчас. Поэтому сдвиг порога переставляет кружки без записи в базу. */
+  withUrgency.sort((a, b) => {
+    const d = WEIGHT[b.urgency.level] - WEIGHT[a.urgency.level];
+    return d !== 0 ? d : a.theme.sort - b.theme.sort;
+  });
+  painted = withUrgency;
+
+  /* Лента недавних записей спрашивает каждую тему отдельно. */
+  recentThemes.length = 0;
+  for (const { theme } of withUrgency) {
+    recentThemes.push({
+      id: theme.id,
+      short: theme.short ?? theme.name,
+      color: theme.color ?? 'var(--c-muted)',
+      getRecent: async (from) => (await engine.getRecent(from)).filter((r) => r.moduleId === theme.id),
+      removeRecord: (id) => engine.removeRecord(id),
+      restoreRecord: (id) => engine.restoreRecord(id),
+    });
+  }
+
+  const rings = withUrgency.map(({ theme, urgency }) => `
+      <li class="ring" data-theme="${theme.id}">
+        ${ringSvg(theme, urgency, holdId === theme.id)}
+        <span class="ring__label">${theme.short ?? theme.name}</span>
+      </li>`).join('');
+
+  /* Снимаем прежние жесты до замены разметки: отписка гасит кадровый цикл
+     и сообщает об окончании удержания. Иначе останется висеть чужой. */
+  for (const off of unbind) off();
+  unbind = [];
+
   document.getElementById('screen').innerHTML =
     header() +
-    '<nav class="rings"><ul class="rings__row"></ul></nav>' +
+    `<nav class="rings"><ul class="rings__row">${rings}</ul></nav>` +
     '<div class="feed"></div>' +
     tabbar();
 
+  for (const { theme } of withUrgency) bindRing(theme);
   document.querySelector('.topbar__menu').addEventListener('click', () => menu.open());
 }
 
-/* Одна подписка на всё. Правка может прийти откуда угодно, и перерисоваться
-   должны все открытые виды сразу. */
+function bindRing(theme) {
+  const el = document.querySelector(`.ring[data-theme="${theme.id}"]`);
+  if (!el) return;
+
+  const quick = Array.isArray(theme.quick) ? theme.quick : [];
+
+  unbind.push(attachHold(el, {
+    // Состояние гаснет на всех путях выхода: отпускание, уход пальца,
+    // отмена касания, переход по трём секундам и отписка при перерисовке -
+    // жесты сообщают об окончании через onProgress(null).
+    onProgress(state) {
+      holdId = state ? theme.id : null;
+      holdState = state;
+      paintRingOnly(theme.id);
+    },
+
+    async onTap() {
+      // Оценка и заметка спрашивают значение на экране темы, а его ещё нет.
+      if (theme.kind === 'scale' || theme.kind === 'note') {
+        alert('Ввод для этого вида темы появится вместе с экраном темы');
+        return;
+      }
+      await record(theme, quick[0] ?? 1, TAP);
+    },
+
+    async onFirst() {
+      // У флажка, оценки и заметки удержание величины не имеет.
+      if (theme.kind === 'flag' || theme.kind === 'scale' || theme.kind === 'note') return;
+      await record(theme, quick[1] ?? quick[0] ?? 1, HOLD);
+    },
+
+    /* Удержание трёх секунд открывало экран темы. Экран появится в 4б;
+       до тех пор жест гасит удержание и ничего не пишет. */
+    async onSecond() {
+      holdId = null;
+      holdState = null;
+      await render();
+    },
+  }));
+}
+
+/* Перерисовка одного кружка на каждом кадре удержания: полная сборка экрана
+   шестьдесят раз в секунду не нужна и заметно тормозит. */
+function paintRingOnly(themeId) {
+  const el = document.querySelector(`.ring[data-theme="${themeId}"] svg`);
+  const found = painted.find((p) => p.theme.id === themeId);
+  if (!el || !found) return;
+  el.outerHTML = ringSvg(found.theme, found.urgency, true);
+}
+
+async function record(theme, value, source) {
+  try {
+    const { record: rec, removed } = await engine.add(theme.id, value, source);
+    const label = await engine.labelFor(theme.id, rec);
+
+    undo.push({
+      label: removed ? `снято: ${label}` : label,
+      onUndo: () => (removed ? engine.restore(rec.id) : engine.remove(rec.id)),
+    });
+
+    percentUntil = performance.now() + 7000;
+    holdId = null;
+    holdState = null;
+    await render();
+    setTimeout(render, 7100);            // погасить процент, когда истечёт окно
+  } catch (e) {
+    alert(`Запись не сохранена: ${e.message}`);
+  }
+}
+
+/* Одна подписка на всё. Отмена может прийти откуда угодно - из ленты,
+   с главного экрана, - и перерисоваться должны все открытые виды сразу. */
 const refreshAll = () => { render(); recent.refresh(); };
 store.onChange('theme', refreshAll);
+store.onChange('theme_goal', refreshAll);
 store.onChange('entry', refreshAll);
 
 /* Порядок важен: сначала данные доводятся до текущей версии схемы,
@@ -91,9 +262,9 @@ store.onChange('entry', refreshAll);
 })();
 
 /*
-  Обмен идёт сбоку и молча. Он не показывает ничего поверх экрана: неудача -
-  обычное дело, в метро связи нет. Состояние обмена видно в меню, там же
-  кнопка «Синхронизировать» и список записей, которых не принял сервер.
+  Обмен идёт сбоку и молча. Он не мешает записывать и не показывает ничего
+  поверх экрана: неудача - обычное дело, в метро связи нет. Состояние обмена
+  видно в меню, там же список записей, которых не принял сервер.
 */
 function startSync() {
   const quiet = () => sync.run().then(refreshAll).catch(() => {});
