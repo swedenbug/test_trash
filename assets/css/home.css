@@ -313,6 +313,23 @@
   line-height: 1.35;
 }
 
+/* Строка «Не принято сервером» разворачивается тапом. */
+.facts__row--tap { cursor: pointer; }
+.facts__row--tap .facts__value { color: var(--c-ink); }
+
+.facts__detail {
+  flex: 1 0 100%;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--c-muted);
+  font-size: var(--t-xs);
+  line-height: 1.45;
+}
+
+.facts__detail li { padding: var(--s-1) 0; border-top: 1px solid var(--c-line); }
+.facts__detail li:first-child { border-top: 0; }
+
 .m-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
 
 .m-note { margin: var(--s-3) 0 0; color: var(--c-muted); font-size: var(--t-xs); }

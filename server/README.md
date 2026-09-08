@@ -230,6 +230,22 @@ sudo reboot
 
 Проверять закрытое важнее, чем открытое: сломанное разрешённое видно сразу, а незакрытая дверь молчит.
 
+**Прогон с клиента — отдельно и обязательно.** Часть проверок честна только снаружи:
+закрытый порт базы, отвечающий домен, действующий сертификат. С Windows — в Git Bash,
+из корня репозитория:
+
+```bash
+bash server/selftest.sh ВАШЕ_ИМЯ ПРОПУСК
+```
+
+**Именно `bash <файл>`, а не `./server/selftest.sh`.** Бит выполнения Git Bash только
+рисует: `ls` показывает `-rwxr-xr-x`, но Windows прав доступа не хранит, и запуск
+отвечает `No such file or directory` — сообщение указывает на отсутствующий файл,
+хотя файл на месте, и время уходит на поиск не там.
+
+Блоки «Службы» и «Резервные копии» с клиента дадут сбой: `systemctl` и журнал живут
+на сервере. Это не отказ, а граница прогона — их смотрят серверным запуском.
+
 ---
 
 ## Шаг 8. Приложение
@@ -280,20 +296,42 @@ tail -20 /var/log/progress-backup.log
 и `sudo cp` оставляют владельцем `root`. Служба такие файлы читает, режим `644` это
 позволяет, но в папке появляется разнобой, а юнит работает с `ProtectSystem=strict`.
 
-Поэтому владелец выставляется явно, тем же действием, что и копирование:
+Поэтому владелец задаётся тем же действием, что и копирование, — у `install` для
+этого есть `-o` и `-g`. Отдельный `chown` следом не нужен:
 
 ```bash
-sudo install -m 644 /tmp/schema.sql /tmp/index.js /opt/progress/server/
-sudo install -m 755 /tmp/selftest.sh /opt/progress/server/
-sudo chown progress:progress /opt/progress/server/{schema.sql,index.js,selftest.sh}
+sudo install -m 644 -o progress -g progress /tmp/schema.sql /tmp/index.js /opt/progress/server/
+sudo install -m 755 -o progress -g progress /tmp/selftest.sh /opt/progress/server/
 sudo systemctl restart progress-sync
 ```
 
 **Проверка:** `ls -l /opt/progress/server` — владелец `progress` у всех файлов,
 `systemctl is-active progress-sync` отвечает `active`.
 
-Если менялась схема — после применения `schema.sql` проверить владельца таблиц,
-см. шаг 2.
+Если менялась схема — применить `schema.sql` заново. Владельца он чинит сам,
+тремя `alter table … owner` в конце файла.
+
+**Перед обновлением — копия с разворотом.** Копия, которую ни разу не пробовали
+восстановить, копией не является:
+
+```bash
+sudo -u postgres pg_dump -Fc progress > /tmp/progress-before.dump
+sudo -u postgres dropdb --if-exists progress_check
+sudo -u postgres createdb progress_check
+sudo -u postgres pg_restore -d progress_check /tmp/progress-before.dump
+sudo -u postgres psql -d progress_check -c '\dt'
+```
+
+`dropdb --if-exists` обязателен: проверочная база остаётся от прошлого обновления,
+и `createdb` без него спотыкается на втором заходе.
+
+**Проверка:** счёт строк в обеих базах совпадает.
+
+```bash
+for db in progress progress_check; do
+  echo -n "$db: "; sudo -u postgres psql -tAd $db -c 'select count(*) from water_intake;'
+done
+```
 
 ---
 ## Если что-то не работает
@@ -309,4 +347,6 @@ sudo systemctl restart progress-sync
 | Служба не поднимается | `journalctl -u progress-sync -n 50` |
 | `permission denied for table` на части таблиц | Схему применили от `postgres`. Вернуть владельца, см. шаг 2 |
 | `operator does not exist: uuid ~~ unknown` | `like` по колонке `uuid`. Нужно `id::text like '...'` |
+| `No such file or directory` на существующий `selftest.sh` | Git Bash на Windows. Запускать `bash server/selftest.sh`, а не `./server/…` |
+| `database "progress_check" already exists` | Осталась от прошлого обновления. `dropdb --if-exists` перед `createdb` |
 | Записи не доезжают | В меню видно, сколько ждёт отправки. Ноль означает, что устройство считает всё отправленным |

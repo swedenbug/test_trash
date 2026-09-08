@@ -149,8 +149,17 @@ async function handlePush(req, res) {
   }
 
   const accepted = {};
+  const rejected = [];
   const client = await pool.connect();
 
+  /*
+    Негодная запись отбрасывается поштучно, а пачка принимается. Одна испорченная
+    строка не должна останавливать обмен: следующая попытка отправит её же, и
+    устройство перестанет отдавать вообще что-либо — молча, потому что обмен молчит.
+
+    Транзакция по-прежнему одна на пачку, а на запись берётся savepoint: он стоит
+    дёшево, а пачка остаётся атомарной по времени.
+  */
   try {
     await client.query('begin');
 
@@ -160,23 +169,61 @@ async function handlePush(req, res) {
       let count = 0;
 
       for (const row of rows) {
-        if (!row || typeof row.id !== 'string' || !row.updated_at) continue;
+        const id = typeof row?.id === 'string' ? row.id : null;
 
-        const values = columns.map((c) => {
-          const v = row[c] === undefined ? null : row[c];
-          return jsonb.includes(c) && v !== null ? JSON.stringify(v) : v;
-        });
+        // Без id и updated_at запись некуда класть и не с чем сравнивать.
+        if (!row || typeof row !== 'object' || !id || !row.updated_at) {
+          rejected.push({ table, id, reason: 'missing_field' });
+          continue;
+        }
+
+        /*
+          Схема закрыта и на сервере тоже. Раньше лишний ключ выбрасывался молча:
+          новая версия приложения отправляла бы поле, которого сервер не знает,
+          и получала успешный ответ при потерянном поле.
+        */
+        const unknown = Object.keys(row).find((k) => !columns.includes(k));
+        if (unknown) {
+          rejected.push({ table, id, reason: 'unknown_field' });
+          continue;
+        }
+
+        let values;
+        try {
+          values = columns.map((c) => {
+            const v = row[c] === undefined ? null : row[c];
+            return jsonb.includes(c) && v !== null ? JSON.stringify(v) : v;
+          });
+        } catch {
+          rejected.push({ table, id, reason: 'bad_json' });
+          continue;
+        }
+
         const holders = columns.map((_, i) => `$${i + 1}`).join(', ');
         const updates = columns.filter((c) => c !== 'id')
           .map((c) => `${c} = excluded.${c}`).join(', ');
 
-        const { rowCount } = await client.query(
-          `insert into ${table} (${columns.join(', ')}) values (${holders})
-           on conflict (id) do update set ${updates}
-           where ${table}.updated_at < excluded.updated_at`,
-          values,
-        );
-        count += rowCount;
+        await client.query('savepoint row_sp');
+        try {
+          const { rowCount } = await client.query(
+            `insert into ${table} (${columns.join(', ')}) values (${holders})
+             on conflict (id) do update set ${updates}
+             where ${table}.updated_at < excluded.updated_at`,
+            values,
+          );
+          await client.query('release savepoint row_sp');
+          count += rowCount;
+        } catch (e) {
+          /*
+            rollback to savepoint саму точку не уничтожает: без release они
+            копятся по одной на каждую негодную строку. Заход 2 отправит всю
+            историю воды одной пачкой, и накопление стало бы заметным.
+          */
+          await client.query('rollback to savepoint row_sp');
+          await client.query('release savepoint row_sp');
+          // 22P02 — строка не разобралась как jsonb; остальное отвергла проверка базы.
+          rejected.push({ table, id, reason: e.code === '22P02' ? 'bad_json' : 'constraint' });
+        }
       }
 
       accepted[table] = count;
@@ -191,8 +238,16 @@ async function handlePush(req, res) {
     client.release();
   }
 
+  /*
+    В журнал — таблица, id и причина. Значения полей не пишутся: в note лежит
+    личный текст, журналу он не нужен.
+  */
+  for (const r of rejected) {
+    console.warn(`отвергнуто: ${r.table} ${r.id ?? 'без id'} — ${r.reason}`);
+  }
+
   const { rows: [{ now }] } = await pool.query('select now() as now');
-  return json(res, 200, { accepted, now: new Date(now).toISOString() });
+  return json(res, 200, { accepted, rejected, now: new Date(now).toISOString() });
 }
 
 /* --- служебное ----------------------------------------------------- */

@@ -15,11 +15,35 @@ import { SYNCED, nowIso } from './schema.js';
 
 const CONFIG = 'config';
 
+/*
+  Записи, которые сервер не принял. Лежат в settings отдельным ключом, а не
+  колонкой в прикладной таблице: схема закрыта, и заводить поле ради служебной
+  пометки значило бы платить обменом за местное знание.
+
+  Ключ на сервер не уезжает - см. фильтр в push(). Список привязан к устройству,
+  как адрес и пропуск.
+*/
+const REJECTED = 'sync.rejected';
+
 export function createSync(store) {
   let running = null;
 
   async function readConfig() {
     return (await store.get('sync_state', CONFIG)) ?? { id: CONFIG, url: null, token: null };
+  }
+
+  async function readRejected() {
+    return (await store.get('settings', REJECTED))?.value ?? {};
+  }
+
+  async function writeRejected(map) {
+    return store.put('settings', { id: REJECTED, value: map, updated_at: nowIso() });
+  }
+
+  /** Строки, которые сервер уже отверг и которые с тех пор не правили. */
+  function isStuck(row, rejected) {
+    const mark = rejected[row.id];
+    return Boolean(mark) && row.updated_at <= mark.at;
   }
 
   async function cursor(collection) {
@@ -43,26 +67,37 @@ export function createSync(store) {
     return res.json();
   }
 
+  /** Строки коллекции, которые сейчас имеет смысл отправлять. */
+  async function outgoing(c, rejected) {
+    const { pushed_at } = await cursor(c);
+    return (await store.list(c, { includeDeleted: true }))
+      .filter((r) => !pushed_at || r.updated_at > pushed_at)
+      .filter((r) => !(c === 'settings' && r.id === REJECTED))
+      .filter((r) => !isStuck(r, rejected));
+  }
+
   /** Сколько записей ждёт отправки. Нужно только для показа в меню. */
   async function pending() {
+    const rejected = await readRejected();
     let count = 0;
-    for (const c of SYNCED) {
-      const { pushed_at } = await cursor(c);
-      const rows = await store.list(c, { includeDeleted: true });
-      count += rows.filter((r) => !pushed_at || r.updated_at > pushed_at).length;
-    }
+    for (const c of SYNCED) count += (await outgoing(c, rejected)).length;
     return count;
   }
 
   async function push(config) {
+    const rejected = await readRejected();
     const changes = {};
     const marks = {};
     let total = 0;
+    let touched = false;
 
     for (const c of SYNCED) {
-      const { pushed_at } = await cursor(c);
-      const rows = (await store.list(c, { includeDeleted: true }))
-        .filter((r) => !pushed_at || r.updated_at > pushed_at);
+      const rows = await outgoing(c, rejected);
+
+      // Запись поправили после отказа - снимаем пометку, уходит обычным порядком.
+      for (const r of rows) {
+        if (rejected[r.id]) { delete rejected[r.id]; touched = true; }
+      }
 
       if (!rows.length) continue;
       changes[c] = rows;
@@ -73,12 +108,27 @@ export function createSync(store) {
       marks[c] = rows.reduce((max, r) => (r.updated_at > max ? r.updated_at : max), '');
     }
 
-    if (!total) return 0;
+    if (!total) {
+      if (touched) await writeRejected(rejected);
+      return 0;
+    }
 
-    await request(config, '/changes', {
+    const answer = await request(config, '/changes', {
       method: 'POST',
       body: JSON.stringify({ changes }),
     });
+
+    /*
+      Сервер отбрасывает негодную запись поштучно и называет её в ответе.
+      Без этого разбора курсор уехал бы по всей пачке, а отвергнутая запись
+      пропала бы тихо - хуже, чем отказ пачки целиком.
+    */
+    for (const r of answer?.rejected ?? []) {
+      if (!r?.id) continue;
+      rejected[r.id] = { table: r.table ?? null, reason: r.reason ?? 'constraint', at: nowIso() };
+      touched = true;
+    }
+    if (touched) await writeRejected(rejected);
 
     for (const [c, mark] of Object.entries(marks)) {
       const state = await cursor(c);
@@ -145,7 +195,49 @@ export function createSync(store) {
         url: config.url,
         lastSync: last,
         pending: await pending(),
+        rejected: Object.keys(await readRejected()).length,
       };
+    },
+
+    /*
+      Снять пометки и отправить заново. Нужно, когда причина отказа устранена
+      не на устройстве, а на сервере: запись не менялась, её updated_at прежний,
+      и сама она из списка уже никогда не выйдет.
+
+      Одной очистки пометок мало. Курсор после отказа мог уехать вперёд по более
+      свежим записям, и тогда отвергнутая осталась бы ниже него - отпущенная,
+      но невидимая для отправки. Поэтому курсор отматывается на миллисекунду
+      назад от самой ранней отвергнутой записи в коллекции.
+    */
+    async retryRejected() {
+      const map = await readRejected();
+      const ids = Object.keys(map);
+      if (!ids.length) return 0;
+
+      for (const c of SYNCED) {
+        const rows = await store.list(c, { includeDeleted: true });
+        const earliest = rows
+          .filter((r) => map[r.id])
+          .reduce((min, r) => (!min || r.updated_at < min ? r.updated_at : min), null);
+        if (!earliest) continue;
+
+        const state = await cursor(c);
+        if (!state.pushed_at || state.pushed_at < earliest) continue;
+
+        const back = new Date(new Date(earliest).getTime() - 1).toISOString();
+        await store.put('sync_state', { ...state, pushed_at: back });
+      }
+
+      await writeRejected({});
+      return ids.length;
+    },
+
+    /** Что сервер не принял: коллекция, время отказа, причина. Свежие сверху. */
+    async rejectedList() {
+      const map = await readRejected();
+      return Object.entries(map)
+        .map(([id, m]) => ({ id, ...m }))
+        .sort((a, b) => (a.at < b.at ? 1 : -1));
     },
 
     /** Полный обмен. Повторный вызов во время работы возвращает тот же результат. */

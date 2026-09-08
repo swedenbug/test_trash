@@ -98,3 +98,14 @@ create index if not exists entry_updated_idx      on entry      (updated_at);
 create index if not exists theme_updated_idx      on theme      (updated_at);
 create index if not exists theme_goal_theme_idx   on theme_goal (theme_id, effective_from);
 create index if not exists theme_goal_updated_idx on theme_goal (updated_at);
+
+/*
+  Таблица принадлежит тому, кто её создал, а служба ходит в базу пользователем
+  progress. Схему, применённую от postgres — например через sudo -u postgres psql,
+  чтобы не набирать пароль, — служба потом читать не сможет: permission denied
+  на каждой новой таблице. Владелец выставляется здесь, а не правилом в README:
+  правило можно забыть, а на новой машине это стоит захода.
+*/
+alter table theme      owner to progress;
+alter table theme_goal owner to progress;
+alter table entry      owner to progress;

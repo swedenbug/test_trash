@@ -9,6 +9,23 @@
 
 import { exportToFile, importFromFile } from '../core/backup.js';
 
+/* Служебные имена сервера человеку не показываем. */
+const COLLECTION = {
+  water_intake: 'Вода',
+  water_goal:   'Норма воды',
+  settings:     'Настройки',
+  theme:        'Тема',
+  theme_goal:   'Норма темы',
+  entry:        'Запись',
+};
+
+const REASON = {
+  unknown_field: 'поле, которого сервер не знает',
+  missing_field: 'не хватает обязательного поля',
+  constraint:    'значение не прошло проверку',
+  bad_json:      'повреждённое значение',
+};
+
 export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
   const el = document.createElement('div');
   el.className = 'sheet-wrap';
@@ -124,6 +141,60 @@ export function createMenu({ store, water, sync, onChange, onOpenRecent }) {
       ? new Date(st.lastSync).toLocaleString('ru-RU')
       : 'не было'));
     list.append(fact('Ждёт отправки', String(st.pending)));
+
+    /*
+      Ноль - строки нет: пустая строка «Не принято: 0» была бы упрёком ни о чём.
+      Обмен молчит про сеть, но не про потерянную запись: молчание про сеть -
+      решение, а про отказ сервера - потеря.
+    */
+    if (st.rejected > 0) {
+      const row = fact('Не принято сервером', String(st.rejected),
+        'Нажмите, чтобы посмотреть. Эти записи не отправляются заново, пока их не поправят.');
+      row.classList.add('facts__row--tap');
+      row.addEventListener('click', async () => {
+        const open = row.querySelector('.facts__detail');
+        if (open) { open.remove(); return; }
+
+        const items = await sync.rejectedList();
+        const ul = document.createElement('ul');
+        ul.className = 'facts__detail';
+        for (const r of items) {
+          const li = document.createElement('li');
+          li.textContent = `${COLLECTION[r.table] ?? r.table ?? 'запись'}`
+            + ` · ${new Date(r.at).toLocaleString('ru-RU')}`
+            + ` · ${REASON[r.reason] ?? r.reason}`;
+          ul.append(li);
+        }
+
+        /*
+          Запись выходит из списка сама, только если её поправили. Когда причину
+          устранили на сервере, править на устройстве нечего - и без этой кнопки
+          запись осталась бы в списке навсегда.
+        */
+        const again = document.createElement('button');
+        again.className = 'btn';
+        again.type = 'button';
+        again.textContent = 'Отправить заново';
+        again.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          again.disabled = true;
+          await sync.retryRejected();
+          try {
+            await sync.run();
+            syncSay('Отправлено заново. Если причина не устранена, записи вернутся в список.', 'is-ok');
+          } catch (err) {
+            syncSay(`Обмен не удался: ${err.message}`, 'is-bad');
+          }
+          await refreshSync();
+        });
+
+        const foot = document.createElement('li');
+        foot.append(again);
+        ul.append(foot);
+        row.append(ul);
+      });
+      list.append(row);
+    }
   }
 
   async function refresh() {
