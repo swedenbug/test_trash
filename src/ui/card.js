@@ -6,7 +6,7 @@
   Данных не читает: на входе готовые числа, на выходе разметка.
 */
 
-import { DROP } from './circle.js';
+import { EMBLEMS } from './emblems.js';
 import { dayCumulative, weekCumulative, weekBars } from './chart.js';
 
 /* Заглушка вместо неподгруженного изображения. Пока пользователь ничего
@@ -21,13 +21,16 @@ function placeholder() {
     </svg>`;
 }
 
-function emblem(glyph, color) {
+function emblem(glyph, color, id) {
   if (glyph) {
     return `<span class="card__emblem card__emblem--letter" style="color:${color}">${glyph}</span>`;
   }
+  /* Знак темы из общего набора. Раньше здесь была капля: тема была одна,
+     и рисовать что-то ещё было не для кого. */
+  const path = (EMBLEMS[id] ?? EMBLEMS.drop).path;
   return `
     <svg class="card__emblem" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="${DROP}" fill="${color}"/>
+      <path d="${path}" fill="${color}"/>
     </svg>`;
 }
 
@@ -90,9 +93,18 @@ export function cardHtml({
   background = true,
   unit = 'мл',
   glyph = null,
+  emblem: emblemId = 'drop',
   color = 'var(--c-mod-water)',
 } = {}) {
-  const pct = Math.round((value / goal) * 100);
+  /*
+    Нормы может не быть вовсе - у заметки, у настроения, у «главного дела дня».
+    Тогда карточка показывает значение и график, но без доли: ни процента
+    в шапке, ни полосы, ни «из N». Доля от несуществующей нормы - это «из null»
+    и бесконечность в процентах, а тема без нормы не должна быть темой
+    второго сорта: кружок у неё есть, история тоже.
+  */
+  const hasGoal = Number.isFinite(goal) && goal > 0;
+  const pct = hasGoal ? Math.round((value / goal) * 100) : null;
 
   /* Карточка сжимается, только когда показывать нечего вовсе.
      Картинка есть - высота сохраняется, иначе её не разглядеть. */
@@ -104,19 +116,23 @@ export function cardHtml({
 
       <div class="card__top">
         <div class="card__head">
-          ${emblem(glyph, color)}
+          ${emblem(glyph, color, emblemId)}
           <div class="card__names">
             <span class="card__title">${title}</span>
             <span class="card__desc">${description}</span>
           </div>
-          <span class="card__pct">${pct}<small>%</small></span>
+          ${hasGoal ? `<span class="card__pct">${pct}<small>%</small></span>` : ''}
         </div>
         <div class="card__chart">${chartBlock({ views, page, series, goal })}</div>
       </div>
 
       <div class="card__body">
-        <div class="card__num"><b>${value}</b><span>из ${goal} ${unit}</span></div>
-        <div class="card__bar"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></div>
+        <div class="card__num"><b>${value}</b><span>${
+          hasGoal ? `из ${goal} ${unit}` : unit
+        }</span></div>
+        ${hasGoal
+          ? `<div class="card__bar"><i style="width:${Math.min(100, pct)}%;background:${color}"></i></div>`
+          : ''}
         <div class="card__foot">${foot}</div>
       </div>
     </article>`;

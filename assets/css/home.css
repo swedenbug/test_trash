@@ -59,17 +59,34 @@
 
 /* --- ряд кружков --- */
 
-/* Граница между областями экрана — на пределе заметности.
-   Она разделяет, но не рисуется: рамки утяжеляют экран. */
+/*
+  Граница между областями экрана - на пределе заметности. Она разделяет,
+  но не рисуется: рамки утяжеляют экран.
+
+  Место под свечение даёт контейнер, а не кружок.
+
+  Кольцо срочности светится той же окружностью с размытием: по построению
+  ореол выходит за габарит кружка примерно на восьмую часть его ширины.
+  Обрезали его двое сразу. Сам SVG - у корневого элемента по умолчанию
+  overflow: hidden, и всё, что вышло за viewBox, срезается. И этот контейнер:
+  горизонтальная прокрутка делает вертикальное переполнение тоже не видимым -
+  такова связь overflow-x и overflow-y, одно visible при другом не visible
+  не остаётся.
+
+  Поэтому здесь два действия: разрешить кружку выходить за свои границы
+  и дать отступы, внутри которых ореолу и подписи есть где поместиться.
+*/
 .rings {
   flex: 0 0 auto;
-  min-height: 116px;
-  padding: var(--s-2) 0 var(--s-3);
+  min-height: 132px;
+  padding: var(--s-3) 0 var(--s-4);
   border-bottom: 1px solid var(--c-hairline);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+
+.ring svg { overflow: visible; }
 
 .rings::-webkit-scrollbar { display: none; }
 
@@ -98,9 +115,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Высота строки задана явно: подпись стоит у нижнего края прокручиваемой
+   зоны, и на наследованном интервале хвосты букв срезались. */
 .ring__label {
   color: var(--c-muted);
   font-size: var(--t-xs);
+  line-height: 1.45;
   white-space: nowrap;
 }
 
@@ -249,6 +269,18 @@
 
 .sheet-panel__sub { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); color: var(--c-muted); }
 
+.sheet-panel__desc { margin: var(--s-1) 0 0; color: var(--c-muted); font-size: var(--t-sm); }
+
+/* Состояние дня словами. Цветом не кричит: это сообщение о факте, а не оценка
+   человека, и тревожный сигнал на экране может быть только один - кольцо. */
+.sheet-panel__state {
+  margin: calc(var(--s-4) * -1) 0 var(--s-5);
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+}
+
+.sheet-panel__state[data-state="broken"] { color: var(--c-signal); }
+
 .manual { display: flex; gap: var(--s-2); }
 
 /* line-height от body поднимал текст на пару пикселей: у поля своя высота,
@@ -277,7 +309,12 @@
 }
 
 .records__row:first-child { border-top: 0; }
-.records__time { font-family: var(--f-num); font-size: var(--t-sm); color: var(--c-muted); width: 48px; }
+/* Ширина по содержимому: в истории темы стоит дата со временем, а не одно время. */
+.records__time {
+  flex: 0 0 auto;
+  font-family: var(--f-num); font-size: var(--t-xs); color: var(--c-muted);
+  min-width: 48px;
+}
 .records__ml { flex: 1; font-family: var(--f-geo); }
 
 .records__del {

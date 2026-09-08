@@ -10,6 +10,6 @@
 */
 
 export const VERSION = {
-  stamp: 'dd8b9743',
-  built: '2026-09-08T17:11:58Z',
+  stamp: 'f0a660c7',
+  built: '2026-09-08T19:15:41Z',
 };

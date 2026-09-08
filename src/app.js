@@ -7,7 +7,7 @@
   и рисует ответ: сколько тем, какие у них знаки, цвета и пороги - её не касается.
   Проверка правила: чтобы завести тему, этот файл править не нужно.
 
-  Экрана темы, карточек и графиков здесь пока нет - они в заходе 4б.
+  Экран темы, карточки и графики собираются здесь же по данным движка.
 */
 
 import { createLocalAdapter } from './core/adapter-local.js';
@@ -15,10 +15,12 @@ import { createStore } from './core/store.js';
 import { createSync } from './core/sync.js';
 import { createEngine, TAP, HOLD } from './modules/engine.js';
 import { circleSvg } from './ui/circle.js';
+import { cardHtml, chartBlock } from './ui/card.js';
 import { createUndo } from './ui/undo.js';
-import { attachHold } from './ui/gestures.js';
+import { attachHold, attachSwipe } from './ui/gestures.js';
 import { createMenu } from './ui/menu.js';
 import { createRecent } from './ui/recent.js';
+import { createThemeScreen } from './ui/theme-screen.js';
 
 const store = createStore(createLocalAdapter());
 const engine = createEngine(store);
@@ -30,8 +32,9 @@ const undo = createUndo(document.body);
    отрисовке: на старте тем ещё нет, а панель создаётся один раз. */
 const recentThemes = [];
 const recent = createRecent({ themes: recentThemes, undo, onChange: render });
+const screen = createThemeScreen({ engine, undo, onChange: render });
 const menu = createMenu({ store, sync, onChange: render, onOpenRecent: () => recent.open() });
-document.body.append(menu.el, recent.el);
+document.body.append(screen.el, menu.el, recent.el);
 
 /* Порядок кружков: сначала срочные. Внутри уровня - по sort темы. */
 const WEIGHT = { hard: 2, soft: 1, done: 0 };
@@ -50,6 +53,8 @@ let percentUntil = 0;      // до какого момента показыва�
 let holdId = null;         // тема, которую сейчас удерживают
 let holdState = null;      // состояние текущего удержания
 let painted = [];          // последняя отрисовка: тема и её срочность
+const chartPage = {};      // открытая страница графика по темам
+const chartData = {};      // ряды и виды по темам - для перерисовки одного графика
 
 /*
   Отписки от жестов. Держать их обязательно.
@@ -82,9 +87,71 @@ function ringSvg(theme, urgency, withHold) {
     content: CONTENT[theme.fill] ?? 'fill',
     color: theme.color ?? 'var(--c-muted)',
     value: urgency.value,
-    goal: urgency.goal ?? 0,
+    // Потолок, а не норма: у шкалы нормы нет, а «5 из 0» - неправда.
+    goal: urgency.ceiling ?? 0,
     percent: performance.now() < percentUntil ? Math.round(urgency.fill * 100) : null,
     hold: withHold ? holdState : null,
+  });
+}
+
+/* Слова о дне под цифрами карточки. Тот же набор, что на экране темы. */
+function footFor(theme, urgency) {
+  if (urgency.state === 'broken') return 'норма превышена';
+  if (urgency.state === 'done') return 'норма выполнена';
+  if (theme.direction === 'at_most' && urgency.goal !== null) return 'пока в порядке';
+  if (urgency.since === null) return 'записей пока нет';
+  if (theme.urgency_kind !== 'time_since') return '';
+
+  const m = urgency.since;
+  if (m < 1) return 'последняя запись только что';
+  if (m < 60) return `последняя запись ${m} мин назад`;
+  const h = Math.floor(m / 60);
+  return `последняя запись ${h} ч${m % 60 ? ` ${m % 60} мин` : ''} назад`;
+}
+
+/*
+  Какие виды графика показывать.
+
+  Накопление за день имеет смысл только у величины: сумма оценок за день -
+  это не оценка, а сумма нулей у заметки - не график. Недельные виды вдобавок
+  целиком про долю, то есть требуют настоящей нормы.
+
+  Отдельно проверяется, что рисовать вообще есть что: `dayCumulative` берёт
+  верх графика как максимум из нормы и значений, и если и то и другое ноль,
+  все координаты выходят NaN - разметка получается битой, а в консоли
+  три десятка ошибок.
+*/
+const CUMULATIVE = ['count', 'time'];
+
+function viewsFor(theme, urgency, series) {
+  if (!CUMULATIVE.includes(theme.kind)) return [];
+  if (urgency.goal !== null) return ['day-line', 'week-line', 'week-bars'];
+  return series.cumulative.some((p) => p.ml > 0) ? ['day-line'] : [];
+}
+
+async function cardFor(theme, urgency) {
+  const { emblem, glyph } = emblemOf(theme);
+  const series = await engine.series(theme.id);
+  const views = viewsFor(theme, urgency, series);
+
+  chartData[theme.id] = { views, series, goal: urgency.goal ?? 0 };
+
+  return cardHtml({
+    theme: theme.id,
+    title: theme.name,
+    description: theme.description ?? '',
+    value: urgency.value,
+    goal: urgency.ceiling,
+    unit: theme.unit ?? '',
+    foot: footFor(theme, urgency),
+    series,
+    views,
+    page: chartPage[theme.id] ?? 0,
+    // Фото тем не будет до захода 9; до тех пор карточка живёт цветом темы.
+    background: false,
+    emblem,
+    glyph,
+    color: theme.color ?? 'var(--c-muted)',
   });
 }
 
@@ -150,6 +217,16 @@ async function render() {
         <span class="ring__label">${theme.short ?? theme.name}</span>
       </li>`).join('');
 
+  /*
+    Карточки идут по sort темы, а не по срочности. Кружки переставляются,
+    карточки нет: список, перескакивающий под пальцем во время чтения,
+    читать нельзя. Порядок здесь пользовательский, и он должен быть постоянным.
+  */
+  const feed = [];
+  for (const { theme, urgency } of [...withUrgency].sort((a, b) => a.theme.sort - b.theme.sort)) {
+    feed.push(await cardFor(theme, urgency));
+  }
+
   /* Снимаем прежние жесты до замены разметки: отписка гасит кадровый цикл
      и сообщает об окончании удержания. Иначе останется висеть чужой. */
   for (const off of unbind) off();
@@ -158,11 +235,47 @@ async function render() {
   document.getElementById('screen').innerHTML =
     header() +
     `<nav class="rings"><ul class="rings__row">${rings}</ul></nav>` +
-    '<div class="feed"></div>' +
+    `<div class="feed">${feed.join('')}</div>` +
     tabbar();
 
-  for (const { theme } of withUrgency) bindRing(theme);
+  for (const { theme } of withUrgency) { bindRing(theme); bindChart(theme.id); }
   document.querySelector('.topbar__menu').addEventListener('click', () => menu.open());
+}
+
+/* Листание графика. Перерисовывается только сам график: пересборка всего
+   экрана на каждый свайп сбрасывала бы прокрутку ленты. */
+function bindChart(themeId) {
+  const data = chartData[themeId];
+  const box = document.querySelector(`.card[data-theme="${themeId}"] .card__chart`);
+  if (!data || !box || data.views.length < 2) return;
+
+  const go = (page) => {
+    chartPage[themeId] = (page + data.views.length) % data.views.length;
+    paintChart(themeId);
+  };
+
+  attachSwipe(box, {
+    onLeft:  () => go((chartPage[themeId] ?? 0) + 1),
+    onRight: () => go((chartPage[themeId] ?? 0) - 1),
+  });
+
+  for (const dot of box.querySelectorAll('.card__dot')) {
+    dot.addEventListener('click', () => go(Number(dot.dataset.page)));
+  }
+}
+
+function paintChart(themeId) {
+  const data = chartData[themeId];
+  const box = document.querySelector(`.card[data-theme="${themeId}"] .card__chart`);
+  if (!data || !box) return;
+
+  box.innerHTML = chartBlock({ ...data, page: chartPage[themeId] ?? 0 });
+  for (const dot of box.querySelectorAll('.card__dot')) {
+    dot.addEventListener('click', () => {
+      chartPage[themeId] = Number(dot.dataset.page);
+      paintChart(themeId);
+    });
+  }
 }
 
 function bindRing(theme) {
@@ -182,9 +295,11 @@ function bindRing(theme) {
     },
 
     async onTap() {
-      // Оценка и заметка спрашивают значение на экране темы, а его ещё нет.
+      // У оценки и заметки величины нет: тап открывает экран, там и спросят.
       if (theme.kind === 'scale' || theme.kind === 'note') {
-        alert('Ввод для этого вида темы появится вместе с экраном темы');
+        holdId = null;
+        holdState = null;
+        await screen.open(theme.id);
         return;
       }
       await record(theme, quick[0] ?? 1, TAP);
@@ -196,11 +311,12 @@ function bindRing(theme) {
       await record(theme, quick[1] ?? quick[0] ?? 1, HOLD);
     },
 
-    /* Удержание трёх секунд открывало экран темы. Экран появится в 4б;
-       до тех пор жест гасит удержание и ничего не пишет. */
+    /* Удержание трёх секунд открывает экран темы. Литр при этом не пишется:
+       переход и запись исключают друг друга. */
     async onSecond() {
       holdId = null;
       holdState = null;
+      await screen.open(theme.id);
       await render();
     },
   }));
@@ -237,7 +353,7 @@ async function record(theme, value, source) {
 
 /* Одна подписка на всё. Отмена может прийти откуда угодно - из ленты,
    с главного экрана, - и перерисоваться должны все открытые виды сразу. */
-const refreshAll = () => { render(); recent.refresh(); };
+const refreshAll = () => { render(); screen.refresh(); recent.refresh(); };
 store.onChange('theme', refreshAll);
 store.onChange('theme_goal', refreshAll);
 store.onChange('entry', refreshAll);

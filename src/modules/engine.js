@@ -20,6 +20,14 @@ export const MANUAL = 'manual';
 const NUMERIC = ['count', 'time'];
 
 /*
+  Потолок оценки задан видом, а не нормой: шкала - это всегда «от одного
+  до десяти», и заводить под неё запись в theme_goal было бы выдумыванием
+  нормы там, где её нет. Отсюда `ceiling` в срочности: норма - это `goal`,
+  а `ceiling` - то, относительно чего показывают значение.
+*/
+const SCALE_MAX = 10;
+
+/*
   Порог срочности задан, только если это число.
 
   Проверять «не равно null» недостаточно: отсутствующее поле даёт `undefined`,
@@ -37,7 +45,6 @@ export function createEngine(store) {
     return localDate(nowIso(), await dayStart());
   }
 
-  /** Записи темы за указанную дату. Наружу не отдаётся: нужен экрану темы, а он в 4б. */
   async function entriesOn(themeId, date) {
     const rows = await store.list('entry');
     return rows.filter((r) => r.theme_id === themeId && r.local_date === date);
@@ -135,7 +142,15 @@ export function createEngine(store) {
       const day = date ?? await today();
       const rows = await entriesOn(themeId, day);
 
-      const value = rows.reduce((sum, r) => sum + r.value, 0);
+      /*
+        Оценка не складывается. Две оценки за день - это не «двенадцать»,
+        а последняя из них: настроение переоценили, а не накопили.
+        Список идёт свежими вперёд, поэтому берётся первая строка.
+      */
+      const value = theme?.kind === 'scale'
+        ? (rows[0]?.value ?? 0)
+        : rows.reduce((sum, r) => sum + r.value, 0);
+
       const goal = await api.goalFor(themeId, day);
       const ratio = goal ? value / goal : 0;
 
@@ -156,11 +171,16 @@ export function createEngine(store) {
       const theme = await api.get(themeId);
       const { value, goal, ratio, state } = await api.progress(themeId);
       const unit = theme?.unit ? ` ${theme.unit}` : '';
-      const summary = goal === null
-        ? `${value}${unit}`
-        : `${value} из ${goal}${unit}`;
 
-      const base = { urgency: 0, since: null, fill: ratio, value, goal, state, summary };
+      /* Относительно чего показывать значение: норма, а у шкалы - её потолок. */
+      const ceiling = goal ?? (theme?.kind === 'scale' ? SCALE_MAX : null);
+      const summary = ceiling === null
+        ? `${value}${unit}`
+        : `${value} из ${ceiling}${unit}`;
+
+      const fill = ceiling ? value / ceiling : ratio;
+
+      const base = { urgency: 0, since: null, fill, value, goal, ceiling, state, summary };
 
       if (!theme || theme.urgency_kind === 'none') {
         return { ...base, level: 'done' };
@@ -212,7 +232,7 @@ export function createEngine(store) {
      * тап снимает отметку, а не пишет вторую, и таблетка отмены должна знать,
      * что именно откатывать.
      */
-    async add(themeId, value, source = TAP) {
+    async add(themeId, value, source = TAP, note = null) {
       const theme = await api.get(themeId);
       if (!theme) throw new Error('темы не существует');
 
@@ -228,9 +248,57 @@ export function createEngine(store) {
 
       const amount = NUMERIC.includes(theme.kind) ? Math.round(value) : value;
       const record = await store.put('entry', {
-        theme_id: themeId, at: nowIso(), value: amount, source,
+        theme_id: themeId, at: nowIso(), value: amount, source, note,
       });
       return { record, removed: false };
+    },
+
+    /** Записи темы за дату. Экран темы показывает ими сегодняшний день. */
+    entriesOn,
+
+    /**
+     * Ряды для графиков. Ключи `ml` и `pct` исторические: chart.js получил их
+     * во времена единственной темы и с тех пор не знает, что рисует.
+     *
+     * У темы «не более» ряды те же самые. Разница не в графике, а в том, что
+     * пересечение нормы означает нарушение, а не успех, - и говорится это
+     * словами, а не линией.
+     */
+    async series(themeId) {
+      const start = await dayStart();
+      const day = await today();
+
+      const rows = (await entriesOn(themeId, day)).slice().reverse();   // по возрастанию времени
+      let sum = 0;
+      const cumulative = rows.map((r) => {
+        sum += r.value;
+        const d = new Date(r.at);
+        return { hour: d.getHours() + d.getMinutes() / 60, ml: sum };
+      });
+
+      const names = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return d;
+      });
+
+      const week = [];
+      const weekCumulative = [];
+      let running = 0;
+
+      for (const d of days) {
+        const date = localDate(d.toISOString(), start);
+        const total = (await entriesOn(themeId, date)).reduce((s, r) => s + r.value, 0);
+        const goal = await api.goalFor(themeId, date);
+
+        week.push({ day: names[d.getDay()], today: date === day,
+                    pct: goal ? Math.round((total / goal) * 100) : 0 });
+        running += total;
+        weekCumulative.push({ day: names[d.getDay()], ml: running });
+      }
+
+      return { cumulative, week, weekCumulative };
     },
 
     remove: (recordId) => store.remove('entry', recordId),
