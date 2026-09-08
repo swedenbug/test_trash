@@ -6,7 +6,7 @@
   Здесь нет хранения и нет интерфейса - только форма данных.
 */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /* Поля, общие для прикладных таблиц. Без них невозможно слияние устройств. */
 const common = {
@@ -16,32 +16,76 @@ const common = {
   deleted_at: { type: 'timestamp', nullable: true, default: null },
 };
 
+/*
+  Таблицы движка тем. Границы и списки значений совпадают с server/schema.sql
+  поле в поле. Расхождение здесь стоит дороже, чем кажется: запись пройдёт
+  местную проверку и будет отвергнута сервером. Заход 1.5 научил это замечать -
+  запись попадёт в список непринятых, - но безвредным не сделал.
+*/
 export const schema = {
-  water_intake: {
-    label: 'Приёмы воды',
-    orderBy: 'at',
+  theme: {
+    label: 'Темы',
+    orderBy: 'sort',
     fields: {
       ...common,
-      at:         { type: 'timestamp', required: true },
-      local_date: { type: 'date',      required: true },
-      amount_ml:  { type: 'int',       required: true, min: 1, max: 5000 },
-      source:     { type: 'enum',      required: true, values: ['tap', 'hold', 'manual'] },
-      note:       { type: 'string',    nullable: true, default: null, max: 500 },
-    },
-    // Локальная дата выводится из момента приёма, вручную её не задают.
-    derive(rec, ctx) {
-      if (!rec.local_date && rec.at) rec.local_date = localDate(rec.at, ctx.dayStartHour);
-      return rec;
+      name:         { type: 'string', required: true },
+      short:        { type: 'string', nullable: true, default: null },
+      description:  { type: 'string', nullable: true, default: null },
+      parent_id:    { type: 'id',     nullable: true, default: null },
+      kind:         { type: 'enum',   required: true,
+                      values: ['group', 'flag', 'count', 'time', 'scale', 'note'] },
+      unit:         { type: 'string', nullable: true, default: null },
+      // Пустота у направления и периода означает «неприменимо»: у группы
+      // и у заметки нормы нет. Выдуманное умолчание однажды прочитали бы
+      // как настоящее.
+      direction:    { type: 'enum',   nullable: true, default: null,
+                      values: ['at_least', 'at_most'] },
+      goal_period:  { type: 'enum',   nullable: true, default: null,
+                      values: ['day', 'week', 'none'] },
+      urgency_kind: { type: 'enum',   required: true,
+                      values: ['time_since', 'day_left', 'none'] },
+      soft_after:   { type: 'int',    nullable: true, default: null, min: 0 },
+      hard_after:   { type: 'int',    nullable: true, default: null, min: 0 },
+      quick:        { type: 'json',   required: true, default: [], array: true },
+      color:        { type: 'string', nullable: true, default: null },
+      emblem:       { type: 'string', nullable: true, default: null },
+      fill:         { type: 'enum',   nullable: true, default: null,
+                      values: ['emblem_fill', 'emblem_solid', 'emblem_detailed',
+                               'glyph', 'value', 'percent'] },
+      sort:         { type: 'int',    required: true, default: 0 },
+      active:       { type: 'bool',   required: true, default: true },
     },
   },
 
-  water_goal: {
-    label: 'Норма воды',
+  theme_goal: {
+    label: 'Нормы тем',
     orderBy: 'effective_from',
     fields: {
       ...common,
-      ml:             { type: 'int',  required: true, min: 200, max: 10000 },
+      theme_id:       { type: 'id',   required: true },
+      value:          { type: 'int',  required: true, min: 1 },
       effective_from: { type: 'date', required: true },
+    },
+  },
+
+  entry: {
+    label: 'Записи',
+    orderBy: 'at',
+    fields: {
+      ...common,
+      theme_id:   { type: 'id',        required: true },
+      at:         { type: 'timestamp', required: true },
+      local_date: { type: 'date',      required: true },
+      // Верхней границы нет: потолок в 5000 был правилом воды, а не общим.
+      value:      { type: 'int',       required: true, min: 0 },
+      source:     { type: 'enum',      required: true,
+                    values: ['tap', 'hold', 'manual', 'timer', 'scenario'] },
+      note:       { type: 'string',    nullable: true, default: null },
+    },
+    // Локальная дата выводится из момента записи, вручную её не задают.
+    derive(rec, ctx) {
+      if (!rec.local_date && rec.at) rec.local_date = localDate(rec.at, ctx.dayStartHour);
+      return rec;
     },
   },
 
@@ -85,12 +129,7 @@ export const schema = {
 /* Значения настроек по умолчанию. Хранилище может их не содержать -
    тогда берутся отсюда, а не из кода модулей. */
 export const defaultSettings = {
-  day_start_hour:       0,
-  'water.tap_ml':       250,
-  'water.hold_ml':      1000,
-  'water.soft_after_min': 72,
-  'water.hard_after_min': 180,
-  'water.goal_ml':      2500,   // пока норма не задана явно в water_goal
+  day_start_hour: 0,
 };
 
 /* ------------------------------------------------------------------ */
@@ -149,6 +188,10 @@ function checkField(name, def, value) {
       if (!def.values.includes(value)) return `${name}: недопустимое значение «${value}»`;
       break;
 
+    case 'bool':
+      if (typeof value !== 'boolean') return `${name}: ожидалось да или нет`;
+      break;
+
     case 'timestamp':
       if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) {
         return `${name}: ожидалась метка времени в формате ISO`;
@@ -159,8 +202,15 @@ function checkField(name, def, value) {
       if (typeof value !== 'string' || !RE_DATE.test(value)) return `${name}: ожидалась дата ГГГГ-ММ-ДД`;
       break;
 
+    /*
+      Любое сериализуемое значение. Но если в схеме сказано `array`, форма
+      проверяется здесь: у сервера на этой колонке стоит jsonb_typeof = 'array',
+      и без проверки строка вместо массива прошла бы местную запись и вернулась
+      отказом с сервера - то есть заметно, но с задержкой в один обмен.
+    */
     case 'json':
-      break;                            // любое сериализуемое значение
+      if (def.array && !Array.isArray(value)) return `${name}: ожидался массив`;
+      break;
 
     default:
       return `${name}: неизвестный тип поля «${def.type}»`;
@@ -212,4 +262,4 @@ export function normalize(collection, input, ctx = {}) {
 export const collections = Object.keys(schema);
 
 /* Что уезжает на сервер. Служебное и состояние обмена - не уезжают. */
-export const SYNCED = ['water_intake', 'water_goal', 'settings'];
+export const SYNCED = ['theme', 'theme_goal', 'entry', 'settings'];

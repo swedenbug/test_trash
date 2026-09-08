@@ -1,98 +1,158 @@
 /*
   app.js - рабочее приложение.
-  Назначение: собрать главный экран на живых данных и связать жесты с хранилищем.
-  Зависимости: ядро, тема воды, элементы интерфейса.
+  Назначение: собрать главный экран на живых данных и связать жесты с движком.
+  Зависимости: ядро, движок тем, элементы интерфейса.
 
-  Питание и спорт присутствуют как заглушки: тем ещё нет, но экран должен
-  показывать, как он поведёт себя с тремя темами.
+  Оболочка не знает ни одной темы. Она спрашивает движок, что показывать,
+  и рисует ответ: сколько тем, какие у них знаки, цвета и пороги - её не касается.
+  Проверка правила: чтобы завести тему, этот файл править не нужно.
+
+  Экран темы, карточки и графики собираются здесь же по данным движка.
 */
 
 import { createLocalAdapter } from './core/adapter-local.js';
 import { createStore } from './core/store.js';
 import { createSync } from './core/sync.js';
-import { createWater, TAP, HOLD } from './modules/water.js';
+import { createEngine, TAP, HOLD } from './modules/engine.js';
 import { circleSvg } from './ui/circle.js';
 import { cardHtml, chartBlock } from './ui/card.js';
 import { createUndo } from './ui/undo.js';
 import { attachHold, attachSwipe } from './ui/gestures.js';
-import { createWaterScreen } from './ui/water-screen.js';
 import { createMenu } from './ui/menu.js';
 import { createRecent } from './ui/recent.js';
+import { createThemeScreen } from './ui/theme-screen.js';
 
 const store = createStore(createLocalAdapter());
-const water = createWater(store);
+const engine = createEngine(store);
 const sync = createSync(store);
 
 const undo = createUndo(document.body);
-const screen = createWaterScreen({ water, undo, onChange: render });
 
-/* Темы для ленты. Неподключённые отдают пустой список - оболочке всё равно,
-   она не знает, что такое вода или подход. */
-const empty = { getRecent: async () => [], removeRecord: async () => {}, restoreRecord: async () => {} };
-const recentThemes = [
-  { id: 'nutrition', short: 'Питание', color: 'var(--c-faint)', ...empty },
-  { id: 'water', short: 'Вода', color: water.color,
-    getRecent: (from) => water.getRecent(from),
-    removeRecord: (recordId) => water.removeRecord(recordId),
-    restoreRecord: (recordId) => water.restoreRecord(recordId) },
-  { id: 'sport', short: 'Спорт', color: 'var(--c-faint)', ...empty },
-];
-
+/* Лента недавних записей спрашивает темы по одной. Список наполняется при
+   отрисовке: на старте тем ещё нет, а панель создаётся один раз. */
+const recentThemes = [];
 const recent = createRecent({ themes: recentThemes, undo, onChange: render });
-const menu = createMenu({ store, water, sync, onChange: render, onOpenRecent: () => recent.open() });
+const screen = createThemeScreen({ engine, undo, onChange: render });
+const menu = createMenu({ store, sync, onChange: render, onOpenRecent: () => recent.open() });
 document.body.append(screen.el, menu.el, recent.el);
 
-/* Заглушки тем, по которым ещё нет ни логики, ни брифа на эмблему. */
-const stubs = [
-  { id: 'nutrition', title: 'Питание', short: 'Питание', glyph: 'П',
-    description: 'Ежедневная норма калорий', unit: 'ккал',
-    value: 0, goal: 2100, level: 'done', foot: 'тема ещё не подключена' },
-  { id: 'sport', title: 'Спорт', short: 'Спорт', glyph: 'С',
-    description: 'Тренировки на этой неделе', unit: 'тренировки',
-    value: 0, goal: 4, level: 'done', foot: 'тема ещё не подключена' },
-];
-
-const order = ['nutrition', 'water', 'sport'];
+/* Порядок кружков: сначала срочные. Внутри уровня - по sort темы. */
 const WEIGHT = { hard: 2, soft: 1, done: 0 };
 
+/* Чем заполнен кружок. Слева - как это названо в схеме, справа - в circle.js. */
+const CONTENT = {
+  emblem_fill:     'fill',
+  emblem_solid:    'solid',
+  emblem_detailed: 'detail',
+  glyph:           'letter',
+  value:           'value',
+  percent:         'percent',
+};
+
 let percentUntil = 0;      // до какого момента показывать процент в кружке
+let holdId = null;         // тема, которую сейчас удерживают
 let holdState = null;      // состояние текущего удержания
+let painted = [];          // последняя отрисовка: тема и её срочность
 const chartPage = {};      // открытая страница графика по темам
-let lastThemes = {};       // последние собранные данные - для перерисовки графика
+const chartData = {};      // ряды и виды по темам - для перерисовки одного графика
 
-function stubTheme(s) {
-  return {
-    ...s, color: 'var(--c-faint)',
-    urgency: { level: s.level, fill: 0, value: s.value, goal: s.goal },
-    /* Неподключённая тема не занимает экран впустую: ни фона, ни графиков -
-       карточка сжимается до шапки и цифр. */
-    series: { cumulative: [] }, views: [], background: false,
-  };
+/*
+  Отписки от жестов. Держать их обязательно.
+
+  Перерисовка заменяет разметку целиком, и если она случится, пока палец
+  на кружке, обработчик остаётся висеть на выброшенном элементе. Отпускание
+  придёт уже новому, а старый об этом не узнает: его кадровый цикл продолжит
+  идти и будет рисовать кольцо удержания, которое никто не держит. Через три
+  секунды он вдобавок сообщит о переходе - жест, которого не было.
+
+  Перерисовку приносит обмен, он идёт сам по себе, - отсюда «иногда».
+*/
+let unbind = [];
+
+/* Знак темы записан строкой с указанием набора: silhouette:drop, char:Ф. */
+function emblemOf(theme) {
+  const [set, name] = String(theme.emblem ?? '').split(':');
+  if (set === 'char') return { emblem: 'drop', glyph: name || null };
+  return { emblem: name || 'drop', glyph: null };
 }
 
-async function collect() {
-  const u = await water.getUrgency();
-  const themes = {
-    water: {
-      id: 'water', title: water.title, short: water.short,
-      description: water.description, unit: water.unit, color: water.color,
-      glyph: null, urgency: u,
-      foot: footFor(u),
-      series: await water.series(),
-      views: ['day-line', 'week-line', 'week-bars'], background: true,
-    },
-  };
-  for (const s of stubs) themes[s.id] = stubTheme(s);
-  return themes;
+function ringSvg(theme, urgency, withHold) {
+  const { emblem, glyph } = emblemOf(theme);
+  return circleSvg({
+    size: 72,
+    level: urgency.level,
+    fill: urgency.fill,
+    emblem,
+    glyph,
+    content: CONTENT[theme.fill] ?? 'fill',
+    color: theme.color ?? 'var(--c-muted)',
+    value: urgency.value,
+    // Потолок, а не норма: у шкалы нормы нет, а «5 из 0» - неправда.
+    goal: urgency.ceiling ?? 0,
+    percent: performance.now() < percentUntil ? Math.round(urgency.fill * 100) : null,
+    hold: withHold ? holdState : null,
+  });
 }
 
-function footFor(u) {
-  if (u.since === null) return 'записей пока нет';
-  if (u.since < 1) return 'последний приём только что';
-  if (u.since < 60) return `последний приём ${u.since} мин назад`;
-  const h = Math.floor(u.since / 60);
-  const m = u.since % 60;
-  return `последний приём ${h} ч${m ? ` ${m} мин` : ''} назад`;
+/* Слова о дне под цифрами карточки. Тот же набор, что на экране темы. */
+function footFor(theme, urgency) {
+  if (urgency.state === 'broken') return 'норма превышена';
+  if (urgency.state === 'done') return 'норма выполнена';
+  if (theme.direction === 'at_most' && urgency.goal !== null) return 'пока в порядке';
+  if (urgency.since === null) return 'записей пока нет';
+  if (theme.urgency_kind !== 'time_since') return '';
+
+  const m = urgency.since;
+  if (m < 1) return 'последняя запись только что';
+  if (m < 60) return `последняя запись ${m} мин назад`;
+  const h = Math.floor(m / 60);
+  return `последняя запись ${h} ч${m % 60 ? ` ${m % 60} мин` : ''} назад`;
+}
+
+/*
+  Какие виды графика показывать.
+
+  Накопление за день имеет смысл только у величины: сумма оценок за день -
+  это не оценка, а сумма нулей у заметки - не график. Недельные виды вдобавок
+  целиком про долю, то есть требуют настоящей нормы.
+
+  Отдельно проверяется, что рисовать вообще есть что: `dayCumulative` берёт
+  верх графика как максимум из нормы и значений, и если и то и другое ноль,
+  все координаты выходят NaN - разметка получается битой, а в консоли
+  три десятка ошибок.
+*/
+const CUMULATIVE = ['count', 'time'];
+
+function viewsFor(theme, urgency, series) {
+  if (!CUMULATIVE.includes(theme.kind)) return [];
+  if (urgency.goal !== null) return ['day-line', 'week-line', 'week-bars'];
+  return series.cumulative.some((p) => p.ml > 0) ? ['day-line'] : [];
+}
+
+async function cardFor(theme, urgency) {
+  const { emblem, glyph } = emblemOf(theme);
+  const series = await engine.series(theme.id);
+  const views = viewsFor(theme, urgency, series);
+
+  chartData[theme.id] = { views, series, goal: urgency.goal ?? 0 };
+
+  return cardHtml({
+    theme: theme.id,
+    title: theme.name,
+    description: theme.description ?? '',
+    value: urgency.value,
+    goal: urgency.ceiling,
+    unit: theme.unit ?? '',
+    foot: footFor(theme, urgency),
+    series,
+    views,
+    page: chartPage[theme.id] ?? 0,
+    // Фото тем не будет до захода 9; до тех пор карточка живёт цветом темы.
+    background: false,
+    emblem,
+    glyph,
+    color: theme.color ?? 'var(--c-muted)',
+  });
 }
 
 function header() {
@@ -123,146 +183,167 @@ function tabbar() {
 }
 
 async function render() {
-  const themes = await collect();
-  lastThemes = themes;
+  const themes = await engine.list();
 
-  const ringOrder = [...order].sort((a, b) => {
-    const d = WEIGHT[themes[b].urgency.level] - WEIGHT[themes[a].urgency.level];
-    return d !== 0 ? d : order.indexOf(a) - order.indexOf(b);
+  const withUrgency = [];
+  for (const t of themes) {
+    withUrgency.push({ theme: t, urgency: await engine.getUrgency(t.id) });
+  }
+
+  /* Уровень нигде не хранится: он посчитан только что и определяет порядок
+     прямо сейчас. Поэтому сдвиг порога переставляет кружки без записи в базу. */
+  withUrgency.sort((a, b) => {
+    const d = WEIGHT[b.urgency.level] - WEIGHT[a.urgency.level];
+    return d !== 0 ? d : a.theme.sort - b.theme.sort;
   });
+  painted = withUrgency;
 
-  const rings = ringOrder.map((key) => {
-    const t = themes[key];
-    const isWater = key === 'water';
-    const showPct = isWater && performance.now() < percentUntil;
-
-    return `<li class="ring" data-theme="${key}">
-        ${circleSvg({
-          size: 72,
-          level: t.urgency.level,
-          fill: t.urgency.fill,
-          glyph: t.glyph,
-          color: t.color,
-          percent: showPct ? Math.round(t.urgency.fill * 100) : null,
-          hold: isWater ? holdState : null,
-        })}
-        <span class="ring__label">${t.short}</span>
-      </li>`;
-  }).join('');
-
-  const feed = order.map((key) => {
-    const t = themes[key];
-    return cardHtml({
-      theme: key,
-      title: t.title, description: t.description,
-      value: t.urgency.value, goal: t.urgency.goal, unit: t.unit,
-      foot: t.foot, series: t.series,
-      glyph: t.glyph, color: t.color,
-      views: t.views, background: t.background,
-      page: chartPage[key] ?? 0,
+  /* Лента недавних записей спрашивает каждую тему отдельно. */
+  recentThemes.length = 0;
+  for (const { theme } of withUrgency) {
+    recentThemes.push({
+      id: theme.id,
+      short: theme.short ?? theme.name,
+      color: theme.color ?? 'var(--c-muted)',
+      getRecent: async (from) => (await engine.getRecent(from)).filter((r) => r.moduleId === theme.id),
+      removeRecord: (id) => engine.removeRecord(id),
+      restoreRecord: (id) => engine.restoreRecord(id),
     });
-  }).join('');
+  }
+
+  const rings = withUrgency.map(({ theme, urgency }) => `
+      <li class="ring" data-theme="${theme.id}">
+        ${ringSvg(theme, urgency, holdId === theme.id)}
+        <span class="ring__label">${theme.short ?? theme.name}</span>
+      </li>`).join('');
+
+  /*
+    Карточки идут по sort темы, а не по срочности. Кружки переставляются,
+    карточки нет: список, перескакивающий под пальцем во время чтения,
+    читать нельзя. Порядок здесь пользовательский, и он должен быть постоянным.
+  */
+  const feed = [];
+  for (const { theme, urgency } of [...withUrgency].sort((a, b) => a.theme.sort - b.theme.sort)) {
+    feed.push(await cardFor(theme, urgency));
+  }
+
+  /* Снимаем прежние жесты до замены разметки: отписка гасит кадровый цикл
+     и сообщает об окончании удержания. Иначе останется висеть чужой. */
+  for (const off of unbind) off();
+  unbind = [];
 
   document.getElementById('screen').innerHTML =
     header() +
     `<nav class="rings"><ul class="rings__row">${rings}</ul></nav>` +
-    `<div class="feed">${feed}</div>` +
+    `<div class="feed">${feed.join('')}</div>` +
     tabbar();
 
-  bindWaterRing();
-  bindCharts();
+  for (const { theme } of withUrgency) { bindRing(theme); bindChart(theme.id); }
   document.querySelector('.topbar__menu').addEventListener('click', () => menu.open());
 }
 
 /* Листание графика. Перерисовывается только сам график: пересборка всего
    экрана на каждый свайп сбрасывала бы прокрутку ленты. */
-function bindCharts() {
-  for (const [key, theme] of Object.entries(lastThemes)) {
-    if (theme.views.length < 2) continue;
+function bindChart(themeId) {
+  const data = chartData[themeId];
+  const box = document.querySelector(`.card[data-theme="${themeId}"] .card__chart`);
+  if (!data || !box || data.views.length < 2) return;
 
-    const box = document.querySelector(`.card[data-theme="${key}"] .card__chart`);
-    if (!box) continue;
+  const go = (page) => {
+    chartPage[themeId] = (page + data.views.length) % data.views.length;
+    paintChart(themeId);
+  };
 
-    const total = theme.views.length;
-    const go = (page) => {
-      chartPage[key] = (page + total) % total;
-      paintChart(key);
-    };
+  attachSwipe(box, {
+    onLeft:  () => go((chartPage[themeId] ?? 0) + 1),
+    onRight: () => go((chartPage[themeId] ?? 0) - 1),
+  });
 
-    attachSwipe(box, {
-      onLeft:  () => go((chartPage[key] ?? 0) + 1),
-      onRight: () => go((chartPage[key] ?? 0) - 1),
-    });
+  for (const dot of box.querySelectorAll('.card__dot')) {
+    dot.addEventListener('click', () => go(Number(dot.dataset.page)));
+  }
+}
 
-    box.querySelectorAll('.card__dot').forEach((dot) => {
-      dot.addEventListener('click', () => go(Number(dot.dataset.page)));
+function paintChart(themeId) {
+  const data = chartData[themeId];
+  const box = document.querySelector(`.card[data-theme="${themeId}"] .card__chart`);
+  if (!data || !box) return;
+
+  box.innerHTML = chartBlock({ ...data, page: chartPage[themeId] ?? 0 });
+  for (const dot of box.querySelectorAll('.card__dot')) {
+    dot.addEventListener('click', () => {
+      chartPage[themeId] = Number(dot.dataset.page);
+      paintChart(themeId);
     });
   }
 }
 
-function paintChart(key) {
-  const theme = lastThemes[key];
-  const box = document.querySelector(`.card[data-theme="${key}"] .card__chart`);
-  if (!theme || !box) return;
-
-  box.innerHTML = chartBlock({
-    views: theme.views,
-    page: chartPage[key] ?? 0,
-    series: theme.series,
-    goal: theme.urgency.goal,
-  });
-
-  box.querySelectorAll('.card__dot').forEach((dot) => {
-    dot.addEventListener('click', () => {
-      chartPage[key] = Number(dot.dataset.page);
-      paintChart(key);
-    });
-  });
-}
-
-function bindWaterRing() {
-  const el = document.querySelector('.ring[data-theme="water"]');
+function bindRing(theme) {
+  const el = document.querySelector(`.ring[data-theme="${theme.id}"]`);
   if (!el) return;
 
-  attachHold(el, {
-    onProgress(state) { holdState = state; paintRingOnly(); },
+  const quick = Array.isArray(theme.quick) ? theme.quick : [];
+
+  unbind.push(attachHold(el, {
+    // Состояние гаснет на всех путях выхода: отпускание, уход пальца,
+    // отмена касания, переход по трём секундам и отписка при перерисовке -
+    // жесты сообщают об окончании через onProgress(null).
+    onProgress(state) {
+      holdId = state ? theme.id : null;
+      holdState = state;
+      paintRingOnly(theme.id);
+    },
 
     async onTap() {
-      const ml = await store.setting('water.tap_ml');
-      await record(ml, TAP);
+      // У оценки и заметки величины нет: тап открывает экран, там и спросят.
+      if (theme.kind === 'scale' || theme.kind === 'note') {
+        holdId = null;
+        holdState = null;
+        await screen.open(theme.id);
+        return;
+      }
+      await record(theme, quick[0] ?? 1, TAP);
     },
 
     async onFirst() {
-      const ml = await store.setting('water.hold_ml');
-      await record(ml, HOLD);
+      // У флажка, оценки и заметки удержание величины не имеет.
+      if (theme.kind === 'flag' || theme.kind === 'scale' || theme.kind === 'note') return;
+      await record(theme, quick[1] ?? quick[0] ?? 1, HOLD);
     },
 
+    /* Удержание трёх секунд открывает экран темы. Литр при этом не пишется:
+       переход и запись исключают друг друга. */
     async onSecond() {
+      holdId = null;
       holdState = null;
-      await screen.open();
+      await screen.open(theme.id);
       await render();
     },
-  });
+  }));
 }
 
 /* Перерисовка одного кружка на каждом кадре удержания: полная сборка экрана
    шестьдесят раз в секунду не нужна и заметно тормозит. */
-async function paintRingOnly() {
-  const el = document.querySelector('.ring[data-theme="water"] svg');
-  if (!el) return;
-  const u = await water.getUrgency();
-  el.outerHTML = circleSvg({
-    size: 72, level: u.level, fill: u.fill,
-    color: water.color, hold: holdState,
-    percent: performance.now() < percentUntil ? Math.round(u.fill * 100) : null,
-  });
+function paintRingOnly(themeId) {
+  const el = document.querySelector(`.ring[data-theme="${themeId}"] svg`);
+  const found = painted.find((p) => p.theme.id === themeId);
+  if (!el || !found) return;
+  el.outerHTML = ringSvg(found.theme, found.urgency, true);
 }
 
-async function record(ml, source) {
+async function record(theme, value, source) {
   try {
-    const rec = await water.add(ml, source);
-    undo.push({ label: `${rec.amount_ml} мл`, onUndo: () => water.remove(rec.id) });
+    const { record: rec, removed } = await engine.add(theme.id, value, source);
+    const label = await engine.labelFor(theme.id, rec);
+
+    undo.push({
+      label: removed ? `снято: ${label}` : label,
+      onUndo: () => (removed ? engine.restore(rec.id) : engine.remove(rec.id)),
+    });
+
     percentUntil = performance.now() + 7000;
+    holdId = null;
+    holdState = null;
     await render();
     setTimeout(render, 7100);            // погасить процент, когда истечёт окно
   } catch (e) {
@@ -270,13 +351,12 @@ async function record(ml, source) {
   }
 }
 
-/* Одна подписка на всё. Отмена может прийти откуда угодно - из ленты, с экрана
-   темы, с главного, - и перерисоваться должны все открытые виды сразу.
-   Иначе запись возвращается в хранилище, но на глазах у пользователя остаётся
-   удалённой, и он жмёт отмену второй раз. */
+/* Одна подписка на всё. Отмена может прийти откуда угодно - из ленты,
+   с главного экрана, - и перерисоваться должны все открытые виды сразу. */
 const refreshAll = () => { render(); screen.refresh(); recent.refresh(); };
-store.onChange('water_intake', refreshAll);
-store.onChange('water_goal', refreshAll);
+store.onChange('theme', refreshAll);
+store.onChange('theme_goal', refreshAll);
+store.onChange('entry', refreshAll);
 
 /* Порядок важен: сначала данные доводятся до текущей версии схемы,
    и только потом что-либо читается и рисуется. */
@@ -298,9 +378,9 @@ store.onChange('water_goal', refreshAll);
 })();
 
 /*
-  Обмен идёт сбоку и молча. Он не мешает записывать воду и не показывает
-  ничего поверх экрана: неудача - обычное дело, в метро связи нет.
-  Состояние обмена видно в меню, там же кнопка «Синхронизировать».
+  Обмен идёт сбоку и молча. Он не мешает записывать и не показывает ничего
+  поверх экрана: неудача - обычное дело, в метро связи нет. Состояние обмена
+  видно в меню, там же список записей, которых не принял сервер.
 */
 function startSync() {
   const quiet = () => sync.run().then(refreshAll).catch(() => {});
