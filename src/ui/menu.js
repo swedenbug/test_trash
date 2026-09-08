@@ -25,7 +25,7 @@ const REASON = {
   bad_json:      'повреждённое значение',
 };
 
-export function createMenu({ store, sync, onChange, onOpenRecent }) {
+export function createMenu({ store, sync, onChange, onOpenRecent, onNewTheme, onOpenOrder }) {
   const el = document.createElement('div');
   el.className = 'sheet-wrap';
   el.hidden = true;
@@ -38,6 +38,12 @@ export function createMenu({ store, sync, onChange, onOpenRecent }) {
       </header>
 
       <ul class="menu-list">
+        <li><button class="menu-link" id="m-new-theme" type="button">
+          <span>Новая тема</span><span class="menu-link__go">›</span>
+        </button></li>
+        <li><button class="menu-link" id="m-order" type="button">
+          <span>Порядок тем</span><span class="menu-link__go">›</span>
+        </button></li>
         <li><button class="menu-link" id="m-recent" type="button">
           <span>Недавние записи</span><span class="menu-link__go">›</span>
         </button></li>
@@ -264,6 +270,16 @@ export function createMenu({ store, sync, onChange, onOpenRecent }) {
   $('#m-recent').addEventListener('click', () => {
     close();
     onOpenRecent?.();
+  });
+
+  $('#m-new-theme').addEventListener('click', () => {
+    close();
+    onNewTheme?.();
+  });
+
+  $('#m-order').addEventListener('click', () => {
+    close();
+    onOpenOrder?.();
   });
 
   $('#m-export').addEventListener('click', async () => {

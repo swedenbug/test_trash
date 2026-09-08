@@ -36,6 +36,51 @@ const SCALE_MAX = 10;
 */
 const threshold = (v) => (Number.isFinite(v) ? v : null);
 
+/* Подпись под кружком. Длиннее не помещается и обрезалась бы молча. */
+const SHORT_MAX = 12;
+
+/*
+  Проверка темы перед записью. Схема ловит форму - тип поля, список значений;
+  здесь ловится смысл, которого схема знать не может: что подпись поместится
+  под кружком, что быстрые значения положительны, что мягкий порог наступает
+  раньше жёсткого. Без последнего жёсткий уровень недостижим, и кружок
+  никогда не покраснеет - отказ, который выглядит как работа.
+*/
+function checkTheme(input) {
+  const t = { ...input };
+
+  if (typeof t.name !== 'string' || !t.name.trim()) throw new Error('название обязательно');
+  t.name = t.name.trim();
+
+  if (t.short) {
+    t.short = String(t.short).trim();
+    if (t.short.length > SHORT_MAX) {
+      throw new Error(`подпись не длиннее ${SHORT_MAX} символов`);
+    }
+  }
+
+  if (t.quick != null) {
+    if (!Array.isArray(t.quick)) throw new Error('быстрые значения - список');
+    if (t.quick.some((v) => !Number.isInteger(v) || v <= 0)) {
+      throw new Error('быстрые значения - целые больше нуля');
+    }
+  }
+
+  for (const field of ['soft_after', 'hard_after']) {
+    const v = t[field];
+    if (v == null) continue;
+    if (!Number.isInteger(v) || v < 0) throw new Error('пороги - целые минуты, не меньше нуля');
+  }
+
+  const soft = threshold(t.soft_after);
+  const hard = threshold(t.hard_after);
+  if (soft !== null && hard !== null && soft >= hard) {
+    throw new Error('мягкий порог должен наступать раньше жёсткого');
+  }
+
+  return t;
+}
+
 export function createEngine(store) {
   async function dayStart() {
     return store.setting('day_start_hour');
@@ -101,6 +146,62 @@ export function createEngine(store) {
       return store.get('theme', themeId);
     },
 
+    /* Все темы, включая выключенные и группы. Нужен списку порядка и правке. */
+    async all() {
+      const rows = await store.list('theme');
+      return rows.sort((a, b) => a.sort - b.sort);
+    },
+
+    /* --- заведение и правка тем ----------------------------------- */
+
+    /**
+     * Завести тему. Проверки живут здесь, а не в форме: форма рисует,
+     * а что считается допустимой темой - знание предметной области.
+     * Иначе второй способ заведения обошёл бы правила молча.
+     */
+    async createTheme(input) {
+      const clean = checkTheme(input);
+
+      // Новая тема встаёт в конец: порядок задаётся отдельным списком.
+      const last = (await api.all()).reduce((m, t) => Math.max(m, t.sort ?? 0), -1);
+
+      return store.put('theme', { ...clean, sort: last + 1 });
+    },
+
+    /**
+     * Поправить тему. Вид и единица неизменяемы: записи уже лежат в этих
+     * единицах, и смена вида превратила бы секунды в баллы задним числом.
+     */
+    async updateTheme(themeId, patch) {
+      const current = await api.get(themeId);
+      if (!current) throw new Error('темы не существует');
+
+      for (const field of ['kind', 'unit']) {
+        if (field in patch && patch[field] !== current[field]) {
+          throw new Error(`${field === 'kind' ? 'вид' : 'единица'} не меняется после создания`);
+        }
+      }
+
+      return store.put('theme', { ...current, ...checkTheme({ ...current, ...patch }) });
+    },
+
+    /** Выключение вместо удаления: тема уходит с глаз, записи остаются целыми. */
+    async setActive(themeId, on) {
+      const current = await api.get(themeId);
+      if (!current) throw new Error('темы не существует');
+      return store.put('theme', { ...current, active: Boolean(on) });
+    },
+
+    /** Порядок задаётся списком целиком: `sort` руками не вводится. */
+    async reorder(ids) {
+      const themes = await api.all();
+      for (const [i, id] of ids.entries()) {
+        const t = themes.find((x) => x.id === id);
+        if (t && t.sort !== i) await store.put('theme', { ...t, sort: i });
+      }
+      return ids.length;
+    },
+
     /* --- норма ---------------------------------------------------- */
 
     /** Норма на дату: последняя запись, вступившая в силу не позже неё. */
@@ -115,6 +216,8 @@ export function createEngine(store) {
      * прошлые дни остаются посчитанными по той норме, что была тогда.
      */
     async setGoal(themeId, value, fromDate) {
+      if (!Number.isInteger(value) || value <= 0) throw new Error('норма - целое больше нуля');
+
       const date = fromDate ?? await today();
       const rows = await store.list('theme_goal');
       const sameDay = rows.find((r) => r.theme_id === themeId && r.effective_from === date);

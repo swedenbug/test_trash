@@ -21,6 +21,8 @@ import { attachHold, attachSwipe } from './ui/gestures.js';
 import { createMenu } from './ui/menu.js';
 import { createRecent } from './ui/recent.js';
 import { createThemeScreen } from './ui/theme-screen.js';
+import { createThemeForm } from './ui/theme-form.js';
+import { createThemeOrder } from './ui/theme-order.js';
 
 const store = createStore(createLocalAdapter());
 const engine = createEngine(store);
@@ -32,9 +34,16 @@ const undo = createUndo(document.body);
    отрисовке: на старте тем ещё нет, а панель создаётся один раз. */
 const recentThemes = [];
 const recent = createRecent({ themes: recentThemes, undo, onChange: render });
-const screen = createThemeScreen({ engine, undo, onChange: render });
-const menu = createMenu({ store, sync, onChange: render, onOpenRecent: () => recent.open() });
-document.body.append(screen.el, menu.el, recent.el);
+const screen = createThemeScreen({ engine, undo, onChange: render, onEdit: (id) => form.open(id) });
+const form = createThemeForm({ engine, onSaved: () => refreshAll() });
+const order = createThemeOrder({ engine, onChange: () => refreshAll() });
+const menu = createMenu({
+  store, sync, onChange: render,
+  onOpenRecent: () => recent.open(),
+  onNewTheme: () => form.open(),
+  onOpenOrder: () => order.open(),
+});
+document.body.append(screen.el, form.el, order.el, menu.el, recent.el);
 
 /* Порядок кружков: сначала срочные. Внутри уровня - по sort темы. */
 const WEIGHT = { hard: 2, soft: 1, done: 0 };

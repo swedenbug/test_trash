@@ -18,7 +18,7 @@ const DAY_STATE = {
   done:   'норма выполнена',
 };
 
-export function createThemeScreen({ engine, undo, onChange }) {
+export function createThemeScreen({ engine, undo, onChange, onEdit }) {
   const el = document.createElement('div');
   el.className = 'sheet-wrap';
   el.hidden = true;
@@ -27,6 +27,7 @@ export function createThemeScreen({ engine, undo, onChange }) {
     <section class="sheet-panel">
       <header class="sheet-panel__head">
         <h2 id="t-title">Тема</h2>
+        <button class="btn" id="t-edit" type="button">Изменить</button>
         <button class="sheet-panel__close" type="button" aria-label="Закрыть">✕</button>
       </header>
 
@@ -215,6 +216,11 @@ export function createThemeScreen({ engine, undo, onChange }) {
       list.append(li);
     }
   }
+
+  $('#t-edit').addEventListener('click', () => {
+    close();
+    onEdit?.(themeId);
+  });
 
   $('.sheet-panel__close').addEventListener('click', close);
   $('.sheet-back').addEventListener('click', close);
